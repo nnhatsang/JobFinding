@@ -119,25 +119,18 @@ class EmployeeAdmin(admin.ModelAdmin):
         return obj.company.name
 
 
-class CandidateAdmin(admin.ModelAdmin):
-    list_display = ('username', 'user_role')
-
-    def username(self, obj):
-        return obj.user.username
-
-    def user_role(self, obj):
-        return obj.user.role.name
 
 
 admin.site.register(Permission, PermissionAdmin)
 admin.site.register(User, MyUserAdmin)
-
 admin.site.register(Comment, CommentAdmin)
 admin.site.register(Job, JobAdmin)
 admin.site.register(Curriculum_Vitae)
-admin.site.register(Candidate, CandidateAdmin)
 admin.site.register(Major, MajorAdmin)
 admin.site.register(Application)
 admin.site.register(Employee, EmployeeAdmin)
 admin.site.register(Company, CompanyAdmin)
+admin.site.register(ImageCompany)
 admin.site.register(Role, RoleAdmin)
+admin.site.register(City)
+

@@ -17,6 +17,8 @@ class AddCommentSerializer(ModelSerializer):
         }
 
 
+# class EmplyeeSerializer(ModelSerializer):
+
 
 class UserSerializer(ModelSerializer):
     avatar_path = serializers.SerializerMethodField(source='avatar')
@@ -48,7 +50,6 @@ class UserSerializer(ModelSerializer):
         return user
 
 
-
 class RoleSerializer(ModelSerializer):
     class Meta:
         model = Role
@@ -74,7 +75,25 @@ class CompanySerializer(ModelSerializer):
 
     class Meta:
         model = Company
-        exclude = ['company']
+        exclude = []
+
+
+class ImageTourSerializer(ModelSerializer):
+    image_path = serializers.SerializerMethodField(source='image')
+
+    def get_image_path(self, obj):
+        if obj.image:
+            path = '{cloud_path}{image_name}'.format(cloud_path=cloud_path, image_name=obj.image)
+            return path
+
+    class Meta:
+        model = ImageCompany
+        fields = ['image_path', 'descriptions']
+        extra_kwargs = {
+            'image_path': {
+                'read_only': True
+            },
+        }
 
 
 class CitySerializer(ModelSerializer):
@@ -83,12 +102,7 @@ class CitySerializer(ModelSerializer):
         field = ['name']
 
 
-class CandidateSerializer(ModelSerializer):
-    user = UserSerializer()
 
-    class Meta:
-        model = Candidate
-        exclude = []
 
 
 class CvSerializer(ModelSerializer):
@@ -101,7 +115,7 @@ class CvSerializer(ModelSerializer):
 
 class ApplicationSerializer(ModelSerializer):
     cv = CvSerializer()
-    candidate = CandidateSerializer()
+    user = UserSerializer()
     company = CompanySerializer()
 
     class Meta:

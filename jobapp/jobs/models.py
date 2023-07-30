@@ -15,13 +15,6 @@ TYPE_JOB_CHOICES = (
     ('contract', 'Contract'),
 )
 
-ROLE_CHOICES = (
-    ('admin', 'Admin'),
-    ('company', 'company'),
-    ('employee', 'Employee'),
-    # Các tùy chọn role khác nếu cần
-)
-
 
 class BaseModel(models.Model):
     create_date = models.DateTimeField(auto_now_add=True)
@@ -40,20 +33,19 @@ class Role(BaseModel):
 
 
 class User(AbstractUser):
-    gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True, null=True)
     avatar = CloudinaryField('avatar', default='', null=True)
     dob = models.DateTimeField(null=True, blank=True)
     description = RichTextField(blank=True, null=False)
     gender = models.BooleanField(default=1)
     phone = models.CharField(null=False, max_length=10)
     address = models.CharField(max_length=255)
-    role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='user', null=True, choices=GENDER_CHOICES)
+    role = models.ForeignKey(Role, on_delete=models.CASCADE, blank=True, null=True)
 
     def __str__(self):
         return self.username
 
 
-class City(models.Model):
+class City(BaseModel):
     name = models.CharField(max_length=255, unique=True)
 
     def __str__(self):
@@ -61,7 +53,7 @@ class City(models.Model):
 
 
 class Company(BaseModel):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='company')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='company')
     name = models.CharField(max_length=255)
     email = models.EmailField()
     logo = CloudinaryField('image', default='', null=True)
@@ -74,8 +66,17 @@ class Company(BaseModel):
         return self.name
 
 
+class ImageCompany(BaseModel):
+    image = CloudinaryField('image', default='')
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True)
+    descriptions = models.CharField(max_length=255, null=True)
+
+    def __str__(self):
+        return self.descriptions
+
+
 class Employee(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='employee')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='employee')
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='employee')
     role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='employee')
 
@@ -114,33 +115,25 @@ class Job(BaseModel):
     is_checked = models.BooleanField(default=False)
 
 
-class Candidate(BaseModel):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True)
-    # Các trường thông tin về ứng viên
-    career_goals = models.TextField()  # Mục tiêu nghề nghiệp của ứng viên
-    degree_detail = models.TextField()  # Chi tiết về bằng cấp của ứng viên
-    experience_detail = models.TextField()  # Chi tiết về kinh nghiệm làm việc của ứng viên
-    skill = models.TextField()  # Kỹ năng của ứng viên
-    cv_link = models.CharField(max_length=255, blank=True)  # Link tới CV của ứng viên
-    foreign_language = models.TextField()  # Ngoại ngữ của ứng viên
-    is_deleted = models.BooleanField(default=False)  # Trạng thái ẩn của ứng viên
+
 
 
 class Curriculum_Vitae(BaseModel):
-    candidate = models.ForeignKey(Candidate, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     career_goals = models.TextField()
     degree_detail = models.TextField()
     experience_detail = models.TextField()
     skill = models.TextField()
     cv_link = models.CharField(max_length=255, blank=True)
     foreignLanguage = models.TextField()
+    is_deleted = models.BooleanField(default=False)  # Trạng thái ẩn của ứng viên
 
     def __str__(self):
-        return f"CV of {self.candidate.user.username}"
+        return f"CV of {self.user.username}"
 
 
 class Application(BaseModel):
-    candidate = models.ForeignKey(Candidate, on_delete=models.CASCADE, related_name='application')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='application')
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='application')
     cv = models.ForeignKey(Curriculum_Vitae, on_delete=models.CASCADE, related_name='application')
     cover_letter = models.TextField()
