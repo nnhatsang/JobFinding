@@ -1,0 +1,1 @@
+cloud_path = 'https://res.cloudinary.com/debpu6bvf/'
