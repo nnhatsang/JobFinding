@@ -53,12 +53,12 @@ class City(BaseModel):
 
 
 class Company(BaseModel):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='company')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='companies')
     name = models.CharField(max_length=255)
     email = models.EmailField()
     logo = CloudinaryField('image', default='', null=True)
     address = models.CharField(max_length=255)
-    city = models.ForeignKey(City, on_delete=models.CASCADE, related_name='company')
+    city = models.ForeignKey(City, on_delete=models.CASCADE, related_name='companies')
     description = RichTextField()
     is_checked = models.BooleanField(default=False)
 
@@ -68,7 +68,7 @@ class Company(BaseModel):
 
 class ImageCompany(BaseModel):
     image = CloudinaryField('image', default='')
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, related_name='images')
     descriptions = models.CharField(max_length=255, null=True)
 
     def __str__(self):
@@ -76,9 +76,9 @@ class ImageCompany(BaseModel):
 
 
 class Employee(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='employee')
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='employee')
-    role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='employee')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='employees')
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='employees')
+    role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='employees')
 
     def __str__(self):
         return self.user.username
@@ -92,10 +92,10 @@ class Major(BaseModel):
 
 
 class Job(BaseModel):
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='job')
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='jobs')
     name = models.CharField(max_length=255)
     majors = models.ManyToManyField(Major, blank=True)  # Mối quan hệ Many-to-Many với Major
-    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='job', blank=True)
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='jobs', blank=True)
     description = models.TextField()  # Đây là trường mô tả công việc, có thể sử dụng TextField thay cho RichTextField
     salary_from = models.DecimalField(null=False, max_digits=10, decimal_places=2)
     salary_to = models.DecimalField(null=False, max_digits=10, decimal_places=2)
@@ -109,17 +109,14 @@ class Job(BaseModel):
     probationary_priod = models.IntegerField(default=1)
     position = models.CharField(max_length=100, null=False)
     type_job = models.CharField(max_length=100, choices=TYPE_JOB_CHOICES, default='full_time')
-    city = models.ForeignKey(City, on_delete=models.CASCADE, related_name='job')
+    city = models.ForeignKey(City, on_delete=models.CASCADE, related_name='jobs')
     experience_required = models.BooleanField(default=False)
     job_required = models.TextField()
     is_checked = models.BooleanField(default=False)
 
 
-
-
-
 class Curriculum_Vitae(BaseModel):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cv')
     career_goals = models.TextField()
     degree_detail = models.TextField()
     experience_detail = models.TextField()
@@ -133,16 +130,16 @@ class Curriculum_Vitae(BaseModel):
 
 
 class Application(BaseModel):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='application')
-    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='application')
-    cv = models.ForeignKey(Curriculum_Vitae, on_delete=models.CASCADE, related_name='application')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='applications')
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='applications')
+    cv = models.ForeignKey(Curriculum_Vitae, on_delete=models.CASCADE, related_name='applications')
     cover_letter = models.TextField()
     resume = models.FileField(upload_to='resumes/%Y/%m/%d/', null=True)
     apply_date = models.DateTimeField(auto_now_add=True)
 
 
 class Comment(BaseModel):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comment')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comments')
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
     content = models.CharField(max_length=255, blank=True)
     rating = models.IntegerField(default=5)

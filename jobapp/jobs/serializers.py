@@ -60,7 +60,7 @@ class UserCompany(ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['avatar_path', 'username', 'first_name', 'last_name', 'phone', 'email']
+        fields = ['avatar_path', 'username', 'first_name', 'last_name', 'phone', 'email', 'role']
 
 
 class RoleSerializer(ModelSerializer):
@@ -91,19 +91,6 @@ class CompanySerializer(ModelSerializer):
         exclude = ['is_checked']
 
 
-class UserCompany(ModelSerializer):
-    avatar_path = serializers.SerializerMethodField(source='avatar')
-
-    def get_avatar_path(self, obj):
-        if obj.avatar:
-            path = '{cloud_path}{image_name}'.format(cloud_path=cloud_path, image_name=obj.avatar)
-            return path
-
-    class Meta:
-        model = User
-        fields = ['avatar_path', 'username', 'first_name', 'last_name', 'phone', 'email']
-
-
 class ImageTourSerializer(ModelSerializer):
     image_path = serializers.SerializerMethodField(source='image')
 
@@ -125,7 +112,7 @@ class ImageTourSerializer(ModelSerializer):
 class CitySerializer(ModelSerializer):
     class Meta:
         model = City
-        fields = ['name','id']
+        fields = ['name', 'id']
 
 
 class CvSerializer(ModelSerializer):
@@ -144,3 +131,20 @@ class ApplicationSerializer(ModelSerializer):
     class Meta:
         model = Application
         exclude = []
+
+
+class EmployeeSerializer(ModelSerializer):
+    user = UserCompany()
+
+    class Meta:
+        model = Employee
+        exclude = []
+
+
+class JobSerializer(ModelSerializer):
+    company = CompanySerializer()
+    employee = EmployeeSerializer()
+
+    class Meta:
+        model = Job
+        exclude = ['is_deleted', 'is_checked']

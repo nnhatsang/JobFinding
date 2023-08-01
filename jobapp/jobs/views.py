@@ -30,28 +30,34 @@ from django.db.models import F
 
 
 class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
-    queryset = Company.objects.filter(is_checked=True)
+    queryset = Company.objects.filter(Q(is_checked=True) & Q(active=True))
     serializer_class = CompanySerializer
-    permission_classes = [permissions.AllowAny]
-
-
-class CityViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
-    queryset = City.objects.filter(active=True)
-    serializer_class = CitySerializer
     permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
         query = self.queryset
-
         kw = self.request.query_params.get('kw')
         if kw:
             query = query.filter(name__icontains=kw)
         return query
 
+
+class CityViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
+    queryset = City.objects.filter(active=True).prefetch_related('companies', 'jobs')
+    serializer_class = CitySerializer
+    permission_classes = [permissions.AllowAny]
+
+    def list(self, request):
+        queryset = self.queryset
+        kw = self.request.query_params.get('kw')
+        if kw:
+            queryset = queryset.filter(name__icontains=kw)
+        return Response(self.serializer_class(queryset, many=True).data, status=status.HTTP_200_OK)
+
     @action(methods=['get'], detail=True, url_path='companies')
     def get_companies(self, request, pk):
         city = self.get_object()
-        companies = city.company.filter(is_checked=True)
+        companies = city.companies.filter(is_checked=True)
 
         kw = self.request.query_params.get('kw')
         if kw is not None:
@@ -62,15 +68,23 @@ class CityViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
     @action(methods=['get'], detail=True, url_path='jobs')
     def get_jobs(self, request, pk):
         city = self.get_object()
-        companies = city.company.filter(is_checked=True)
+        jobs = city.jobs.filter(active=True)
 
         kw = self.request.query_params.get('kw')
         if kw is not None:
-            companies = companies.filter(name__icontains=kw)
+            jobs = jobs.filter(name__icontains=kw)
 
-        return Response(data=CompanySerializer(companies, many=True).data, status=status.HTTP_200_OK)
+        return Response(data=JobSerializer(jobs, many=True).data, status=status.HTTP_200_OK)
 
 
-class JobViewSet(viewsets.ModelViewSet):
-    queryset = City.objects.all()
-    serializer_class = CitySerializer
+class JobViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
+    queryset = Job.objects.filter(Q(is_checked=True) & Q(active=True))
+    serializer_class = JobSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        query = self.queryset
+        kw = self.request.query_params.get('kw')
+        if kw:
+            query = query.filter(name__icontains=kw)
+        return query
