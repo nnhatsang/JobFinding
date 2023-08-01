@@ -35,7 +35,42 @@ class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
     permission_classes = [permissions.AllowAny]
 
 
+class CityViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
+    queryset = City.objects.filter(active=True)
+    serializer_class = CitySerializer
+    permission_classes = [permissions.AllowAny]
 
-class CityViewSet(viewsets.ModelViewSet):
+    def get_queryset(self):
+        query = self.queryset
+
+        kw = self.request.query_params.get('kw')
+        if kw:
+            query = query.filter(name__icontains=kw)
+        return query
+
+    @action(methods=['get'], detail=True, url_path='companies')
+    def get_companies(self, request, pk):
+        city = self.get_object()
+        companies = city.company.filter(is_checked=True)
+
+        kw = self.request.query_params.get('kw')
+        if kw is not None:
+            companies = companies.filter(name__icontains=kw)
+
+        return Response(data=CompanySerializer(companies, many=True).data, status=status.HTTP_200_OK)
+
+    @action(methods=['get'], detail=True, url_path='jobs')
+    def get_jobs(self, request, pk):
+        city = self.get_object()
+        companies = city.company.filter(is_checked=True)
+
+        kw = self.request.query_params.get('kw')
+        if kw is not None:
+            companies = companies.filter(name__icontains=kw)
+
+        return Response(data=CompanySerializer(companies, many=True).data, status=status.HTTP_200_OK)
+
+
+class JobViewSet(viewsets.ModelViewSet):
     queryset = City.objects.all()
     serializer_class = CitySerializer

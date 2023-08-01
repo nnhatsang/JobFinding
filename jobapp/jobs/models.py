@@ -92,7 +92,7 @@ class Major(BaseModel):
 
 
 class Job(BaseModel):
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='company')
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='job')
     name = models.CharField(max_length=255)
     majors = models.ManyToManyField(Major, blank=True)  # Mối quan hệ Many-to-Many với Major
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='job', blank=True)

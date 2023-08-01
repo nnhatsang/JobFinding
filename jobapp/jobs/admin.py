@@ -110,7 +110,7 @@ class CommentAdmin(admin.ModelAdmin):
 
 
 class EmployeeAdmin(admin.ModelAdmin):
-    list_display = ('user_username', 'company_name')
+    list_display = ('user_username', 'company_name', 'role')
 
     def user_username(self, obj):
         return obj.user.username
@@ -118,7 +118,7 @@ class EmployeeAdmin(admin.ModelAdmin):
     def company_name(self, obj):
         return obj.company.name
 
-
+    list_filter = ('company__name', 'role')
 
 
 admin.site.register(Permission, PermissionAdmin)
@@ -133,4 +133,3 @@ admin.site.register(Company, CompanyAdmin)
 admin.site.register(ImageCompany)
 admin.site.register(Role, RoleAdmin)
 admin.site.register(City)
-

@@ -4,7 +4,7 @@ from . import views
 
 r = routers.DefaultRouter()
 r.register('company', views.CompanyViewSet)
-r.register('city', views.CompanyViewSet)
+r.register('city', views.CityViewSet)
 
 urlpatterns = [
     path('', include(r.urls)),

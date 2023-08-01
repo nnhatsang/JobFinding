@@ -50,6 +50,19 @@ class UserSerializer(ModelSerializer):
         return user
 
 
+class UserCompany(ModelSerializer):
+    avatar_path = serializers.SerializerMethodField(source='avatar')
+
+    def get_avatar_path(self, obj):
+        if obj.avatar:
+            path = '{cloud_path}{image_name}'.format(cloud_path=cloud_path, image_name=obj.avatar)
+            return path
+
+    class Meta:
+        model = User
+        fields = ['avatar_path', 'username', 'first_name', 'last_name', 'phone', 'email']
+
+
 class RoleSerializer(ModelSerializer):
     class Meta:
         model = Role
@@ -59,7 +72,7 @@ class RoleSerializer(ModelSerializer):
 class MajorSerializer(ModelSerializer):
     class Meta:
         model = Major
-        field = ['name']
+        field = ['id', 'name']
 
 
 class CommentSerializer(ModelSerializer):
@@ -71,11 +84,24 @@ class CommentSerializer(ModelSerializer):
 
 
 class CompanySerializer(ModelSerializer):
-    user = UserSerializer()
+    user = UserCompany()
 
     class Meta:
         model = Company
-        exclude = []
+        exclude = ['is_checked']
+
+
+class UserCompany(ModelSerializer):
+    avatar_path = serializers.SerializerMethodField(source='avatar')
+
+    def get_avatar_path(self, obj):
+        if obj.avatar:
+            path = '{cloud_path}{image_name}'.format(cloud_path=cloud_path, image_name=obj.avatar)
+            return path
+
+    class Meta:
+        model = User
+        fields = ['avatar_path', 'username', 'first_name', 'last_name', 'phone', 'email']
 
 
 class ImageTourSerializer(ModelSerializer):
@@ -99,10 +125,7 @@ class ImageTourSerializer(ModelSerializer):
 class CitySerializer(ModelSerializer):
     class Meta:
         model = City
-        field = ['name']
-
-
-
+        fields = ['name','id']
 
 
 class CvSerializer(ModelSerializer):
