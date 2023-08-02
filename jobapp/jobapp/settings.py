@@ -42,10 +42,22 @@ INSTALLED_APPS = [
     'rest_framework',
     'drf_yasg',
     'cloudinary',
+    'oauth2_provider',
+    'corsheaders',
+    'debug_toolbar',
+    'rest_framework_simplejwt.token_blacklist',
 
 ]
 AUTH_USER_MODEL = 'jobs.User'
-
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS':
+        'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 5,
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    )
+}
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -54,6 +66,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
 ]
 CORS_ALLOW_ALL_ORIGINS = True
 
@@ -146,3 +160,5 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+client_id = 'CanwuuvCYIbMyCu3MlRAFbgw48vY8MMCVHd08RV5'
+client_secret = '3XEuSg5SjBABeTOYwiLSDwyykpSwzzYWsEI1TrV7SwSVcFpqWpAGn7a83sTsrwUXCCXqeWT9yuoub8BXMef5trqgKoUJgJ6lHtrkUfIEfiBHSHy8wlEqhJ4qPozPHxyU'

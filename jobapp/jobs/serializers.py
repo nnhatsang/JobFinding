@@ -50,7 +50,14 @@ class UserSerializer(ModelSerializer):
         return user
 
 
+class RoleSerializer(ModelSerializer):
+    class Meta:
+        model = Role
+        fields = ['name']
+
+
 class UserCompany(ModelSerializer):
+    role = RoleSerializer()
     avatar_path = serializers.SerializerMethodField(source='avatar')
 
     def get_avatar_path(self, obj):
@@ -66,13 +73,13 @@ class UserCompany(ModelSerializer):
 class RoleSerializer(ModelSerializer):
     class Meta:
         model = Role
-        exclude = []
+        fields = ['name']
 
 
 class MajorSerializer(ModelSerializer):
     class Meta:
         model = Major
-        field = ['id', 'name']
+        fields = ['name']
 
 
 class CommentSerializer(ModelSerializer):
@@ -81,14 +88,6 @@ class CommentSerializer(ModelSerializer):
     class Meta:
         model = Comment
         exclude = ['company']
-
-
-class CompanySerializer(ModelSerializer):
-    user = UserCompany()
-
-    class Meta:
-        model = Company
-        exclude = ['is_checked']
 
 
 class ImageTourSerializer(ModelSerializer):
@@ -112,7 +111,7 @@ class ImageTourSerializer(ModelSerializer):
 class CitySerializer(ModelSerializer):
     class Meta:
         model = City
-        fields = ['name', 'id']
+        fields = ['name']
 
 
 class CvSerializer(ModelSerializer):
@@ -123,6 +122,63 @@ class CvSerializer(ModelSerializer):
         exclude = []
 
 
+class EmployeeSerializer(ModelSerializer):
+    user = UserCompany()
+
+    def get_company_name(self, obj):
+        return obj.company.name
+
+    def get_role_name(self, obj):
+        return obj.role.name
+
+    # Thêm trường SerializerMethodField để hiển thị tên công ty
+    company_name = serializers.SerializerMethodField()
+
+    # Thêm trường SerializerMethodField để hiển thị tên vai trò
+    role_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Employee
+        exclude = ['role', 'company']
+
+
+class CompanySerializer(ModelSerializer):
+    image_path = serializers.SerializerMethodField(source='logo')
+
+    def get_city(self, obj):
+        return obj.city.name
+
+    # Thêm trường SerializerMethodField để hiển thị tên công ty
+    city = serializers.SerializerMethodField()
+
+    def get_image_path(self, obj):
+        if obj.logo:
+            path = '{cloud_path}{image_name}'.format(cloud_path=cloud_path, image_name=obj.logo)
+            return path
+
+    user = UserCompany()
+
+    class Meta:
+        model = Company
+        fields = ['name', 'email', 'image_path', 'user', 'description', 'address', 'city']
+
+
+class JobSerializer(ModelSerializer):
+    company = CompanySerializer()
+    employee = EmployeeSerializer()
+    city = CitySerializer()
+
+    def get_majors(self, obj):
+        return obj.majors.all().values_list('name', flat=True)
+
+    # Thêm trường majors
+    majors = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Job
+        exclude = ['is_deleted', 'is_checked', 'active']
+
+
 class ApplicationSerializer(ModelSerializer):
     cv = CvSerializer()
     user = UserSerializer()
@@ -131,20 +187,3 @@ class ApplicationSerializer(ModelSerializer):
     class Meta:
         model = Application
         exclude = []
-
-
-class EmployeeSerializer(ModelSerializer):
-    user = UserCompany()
-
-    class Meta:
-        model = Employee
-        exclude = []
-
-
-class JobSerializer(ModelSerializer):
-    company = CompanySerializer()
-    employee = EmployeeSerializer()
-
-    class Meta:
-        model = Job
-        exclude = ['is_deleted', 'is_checked']

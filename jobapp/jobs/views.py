@@ -14,7 +14,7 @@ from rest_framework.views import APIView
 # from . import facebook
 from .models import *
 from .serializers import *
-# from .paginators import *
+from .paginators import *
 from rest_framework.response import Response
 from rest_framework.decorators import action, api_view, permission_classes
 from django.contrib.auth import login, logout
@@ -30,8 +30,9 @@ from django.db.models import F
 
 
 class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
-    queryset = Company.objects.filter(Q(is_checked=True) & Q(active=True))
+    queryset = Company.objects.filter(Q(is_checked=True) & Q(active=True)).order_by('create_date')
     serializer_class = CompanySerializer
+    pagination_class = CompanyPaginator
     permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
@@ -82,9 +83,15 @@ class JobViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVie
     serializer_class = JobSerializer
     permission_classes = [permissions.AllowAny]
 
-    def get_queryset(self):
-        query = self.queryset
+    def list(self, request):
+        queryset = self.queryset
         kw = self.request.query_params.get('kw')
         if kw:
-            query = query.filter(name__icontains=kw)
-        return query
+            queryset = queryset.filter(name__icontains=kw)
+        return Response(self.serializer_class(queryset, many=True).data, status=status.HTTP_200_OK)
+
+
+class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
+    queryset = User.objects.filter(is_active=True)
+    serializer_class = UserSerializer
+    parser_classes = [MultiPartParser, ]
