@@ -39,7 +39,7 @@ class User(AbstractUser):
     gender = models.BooleanField(default=1)
     phone = models.CharField(null=False, max_length=10)
     address = models.CharField(max_length=255)
-    role = models.ForeignKey(Role, on_delete=models.CASCADE, blank=True, null=True, default=3)
+    role = models.ForeignKey(Role, on_delete=models.CASCADE, blank=True, null=True, default=4)
 
     def __str__(self):
         return self.username

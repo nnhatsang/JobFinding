@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'oauth2_provider',
     'corsheaders',
     'debug_toolbar',
-    'rest_framework_simplejwt.token_blacklist',
+    # 'rest_framework_simplejwt.token_blacklist',
 
 ]
 AUTH_USER_MODEL = 'jobs.User'
@@ -160,5 +160,5 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-client_id = 'CanwuuvCYIbMyCu3MlRAFbgw48vY8MMCVHd08RV5'
-client_secret = '3XEuSg5SjBABeTOYwiLSDwyykpSwzzYWsEI1TrV7SwSVcFpqWpAGn7a83sTsrwUXCCXqeWT9yuoub8BXMef5trqgKoUJgJ6lHtrkUfIEfiBHSHy8wlEqhJ4qPozPHxyU'
+client_id = 'pLhkmEiocf8CgGQqHQH0IqRLgCkK6KC9XSdFNtut'
+client_secret = '51Sm3FipulQm2FMfSE10cP78fyj9DB4m3rIG9LmNcnMqYTPFlFZ1JtRTOWY8CjppzQ1GfdRaY7qdKwL7SqeV8ga9qjrSWFSzRTn0I9FpgGjKYguSX4ODyruZOO5ChAc9'

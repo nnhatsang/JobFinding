@@ -19,7 +19,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action, api_view, permission_classes
 from django.contrib.auth import login, logout
 from django.contrib.auth import authenticate
-# from .perms import *
+from .perms import *
 from decimal import Decimal
 from datetime import datetime, date
 import random, hashlib
@@ -91,7 +91,53 @@ class JobViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVie
         return Response(self.serializer_class(queryset, many=True).data, status=status.HTTP_200_OK)
 
 
-class UserViewSet(viewsets.ViewSet, generics.CreateAPIView):
+class UserViewSet(viewsets.ViewSet, generics.RetrieveAPIView, generics.CreateAPIView, generics.UpdateAPIView):
     queryset = User.objects.filter(is_active=True)
     serializer_class = UserSerializer
+    permission_classes = [permissions.AllowAny]
     parser_classes = [MultiPartParser, ]
+
+    def get_permissions(self):
+        if self.action in ['partial_update', 'update', 'retrieve', 'current_user', 'change_password',
+                           'get_list_user_applications',
+                           'get_list_user_cvs']:
+            return [UserOwnerPermisson()]
+        return [permissions.AllowAny()]
+
+    @action(methods=['get'], url_path='current_user', detail=False)
+    def current_user(self, request):
+        return Response(data=UserSerializer(request.user).data, status=status.HTTP_200_OK)
+
+    @action(methods=['get'], url_path='applications', detail=False)
+    def get_list_user_applications(self, request):
+        user = request.user
+        if user:
+            applications = Application.objects.filter(user=user)
+            paginator = pagination.PageNumberPagination()
+            paginator.page_size = 10
+            applications = paginator.paginate_queryset(applications, request)
+            return paginator.get_paginated_response(ApplicationSerializer(applications, many=True).data)
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+    @action(methods=['post'], url_path='change_password', detail=True)
+    def change_password(self, request, pk):
+        user = request.user
+        password = request.data.get('password')
+        if password:
+            user.set_password(password)
+            user.save()
+            return Response(status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
+
+    @action(methods=['get'], url_path='cvs', detail=False)
+    def get_list_user_cvs(self, request):
+        user = request.user
+        if user:
+            cvs = Curriculum_Vitae.objects.filter(user=user)
+            paginator = pagination.PageNumberPagination()
+            paginator.page_size = 10
+            cvs = paginator.paginate_queryset(cvs, request)
+            return paginator.get_paginated_response(CvSerializer(cvs, many=True).data)
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST)

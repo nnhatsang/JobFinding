@@ -119,7 +119,7 @@ class CvSerializer(ModelSerializer):
 
     class Meta:
         model = Curriculum_Vitae
-        exclude = []
+        exclude = [ 'active', 'is_deleted']
 
 
 class EmployeeSerializer(ModelSerializer):
@@ -182,8 +182,8 @@ class JobSerializer(ModelSerializer):
 class ApplicationSerializer(ModelSerializer):
     cv = CvSerializer()
     user = UserSerializer()
-    company = CompanySerializer()
+    job = JobSerializer()
 
     class Meta:
         model = Application
-        exclude = []
+        exclude = ['active']
