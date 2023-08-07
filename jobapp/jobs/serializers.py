@@ -30,7 +30,7 @@ class UserSerializer(ModelSerializer):
 
     class Meta:
         model = User
-        exclude = ['user_permissions', 'groups']
+        exclude = ['user_permissions', 'groups', 'is_staff']
         extra_kwargs = {
             'password': {
                 'write_only': True
@@ -119,7 +119,7 @@ class CvSerializer(ModelSerializer):
 
     class Meta:
         model = Curriculum_Vitae
-        exclude = [ 'active', 'is_deleted']
+        exclude = ['active', 'is_deleted']
 
 
 class EmployeeSerializer(ModelSerializer):
@@ -143,24 +143,23 @@ class EmployeeSerializer(ModelSerializer):
 
 
 class CompanySerializer(ModelSerializer):
+    # user = UserCompany()
     image_path = serializers.SerializerMethodField(source='logo')
 
-    def get_city(self, obj):
-        return obj.city.name
-
-    # Thêm trường SerializerMethodField để hiển thị tên công ty
-    city = serializers.SerializerMethodField()
+    def get_user(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return UserCompany(request.user).data
+        return None
 
     def get_image_path(self, obj):
         if obj.logo:
             path = '{cloud_path}{image_name}'.format(cloud_path=cloud_path, image_name=obj.logo)
             return path
 
-    user = UserCompany()
-
     class Meta:
         model = Company
-        fields = ['name', 'email', 'image_path', 'user', 'description', 'address', 'city']
+        fields = ['name', 'email', 'image_path', 'description', 'address', 'city']
 
 
 class JobSerializer(ModelSerializer):

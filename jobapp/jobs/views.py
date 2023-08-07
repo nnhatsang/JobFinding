@@ -101,7 +101,7 @@ class UserViewSet(viewsets.ViewSet, generics.RetrieveAPIView, generics.CreateAPI
         if self.action in ['partial_update', 'update', 'retrieve', 'current_user', 'change_password',
                            'get_list_user_applications',
                            'get_list_user_cvs']:
-            return [UserOwnerPermisson()]
+            return [UserOwnerPermission()]
         return [permissions.AllowAny()]
 
     @action(methods=['get'], url_path='current_user', detail=False)
@@ -141,3 +141,20 @@ class UserViewSet(viewsets.ViewSet, generics.RetrieveAPIView, generics.CreateAPI
             return paginator.get_paginated_response(CvSerializer(cvs, many=True).data)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserCompanyViewSet(viewsets.ModelViewSet, generics.ListAPIView, generics.CreateAPIView):
+    queryset = Company.objects.all()
+    serializer_class = CompanySerializer
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [OwnerCompanyPermission()]
+        return [permissions.IsAuthenticated()]
+
+    def get_queryset(self):
+        user = self.request.user
+        return Company.objects.filter(user=user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
