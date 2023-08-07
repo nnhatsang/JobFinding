@@ -35,12 +35,29 @@ class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
     pagination_class = CompanyPaginator
     permission_classes = [permissions.AllowAny]
 
-    def get_queryset(self):
-        query = self.queryset
+    # def get_queryset(self):
+    #     query = self.queryset
+    #     kw = self.request.query_params.get('kw')
+    #     if kw:
+    #         query = query.filter(name__icontains=kw)
+    #     return query
+    def list(self, request):
+        queryset = self.queryset
         kw = self.request.query_params.get('kw')
         if kw:
-            query = query.filter(name__icontains=kw)
-        return query
+            queryset = queryset.filter(name__icontains=kw)
+        return Response(self.serializer_class(queryset, many=True).data, status=status.HTTP_200_OK)
+
+    @action(methods=['get'], detail=True, url_path='jobs')
+    def get_jobs(self, request, pk):
+        company = self.get_object()
+        jobs = company.jobs.filter(active=True)
+
+        kw = self.request.query_params.get('kw')
+        if kw is not None:
+            jobs = jobs.filter(name__icontains=kw)
+
+        return Response(data=JobSerializer(jobs, many=True).data, status=status.HTTP_200_OK)
 
 
 class CityViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
@@ -143,18 +160,18 @@ class UserViewSet(viewsets.ViewSet, generics.RetrieveAPIView, generics.CreateAPI
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
-class UserCompanyViewSet(viewsets.ModelViewSet, generics.ListAPIView, generics.CreateAPIView):
+class UserCompanyViewSet(viewsets.ModelViewSet, generics.CreateAPIView):
     queryset = Company.objects.all()
     serializer_class = AddCompanySerializer
-
-    def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [OwnerCompanyPermission()]
-        return [permissions.IsAuthenticated()]
-
+    pagination_class = CompanyPaginator
     def get_queryset(self):
-        user = self.request.user
-        return Company.objects.filter(user=user)
+        if self.request.user.is_authenticated:
+            user = self.request.user
+            return Company.objects.filter(user=user)
+        else:
+            # Trả về queryset rỗng nếu người dùng chưa đăng nhập
+            # return Company.objects.none()
+            return Response(status=status.HTTP_400_BAD_REQUEST)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

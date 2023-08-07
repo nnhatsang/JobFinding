@@ -159,7 +159,7 @@ class CompanySerializer(ModelSerializer):
 
     class Meta:
         model = Company
-        fields = ['name', 'email', 'image_path', 'description', 'address', 'city', 'user']
+        fields = ['id', 'name', 'email', 'image_path', 'description', 'address', 'city', 'user']
 
 
 class JobSerializer(ModelSerializer):
@@ -199,3 +199,9 @@ class AddCompanySerializer(ModelSerializer):
     class Meta:
         model = Company
         fields = ['name', 'email', 'image_path', 'description', 'address', 'city']
+
+
+class AddJobSerializer(ModelSerializer):
+    class Meta:
+        model = Job
+        exclude = ['is_deleted', 'is_checked', 'active']
