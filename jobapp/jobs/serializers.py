@@ -143,7 +143,7 @@ class EmployeeSerializer(ModelSerializer):
 
 
 class CompanySerializer(ModelSerializer):
-    # user = UserCompany()
+    user = UserCompany()
     image_path = serializers.SerializerMethodField(source='logo')
 
     def get_user(self, obj):
@@ -159,7 +159,7 @@ class CompanySerializer(ModelSerializer):
 
     class Meta:
         model = Company
-        fields = ['name', 'email', 'image_path', 'description', 'address', 'city']
+        fields = ['name', 'email', 'image_path', 'description', 'address', 'city', 'user']
 
 
 class JobSerializer(ModelSerializer):
@@ -186,3 +186,16 @@ class ApplicationSerializer(ModelSerializer):
     class Meta:
         model = Application
         exclude = ['active']
+
+
+class AddCompanySerializer(ModelSerializer):
+    image_path = serializers.SerializerMethodField(source='logo')
+
+    def get_image_path(self, obj):
+        if obj.logo:
+            path = '{cloud_path}{image_name}'.format(cloud_path=cloud_path, image_name=obj.logo)
+            return path
+
+    class Meta:
+        model = Company
+        fields = ['name', 'email', 'image_path', 'description', 'address', 'city']

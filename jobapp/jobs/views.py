@@ -145,7 +145,7 @@ class UserViewSet(viewsets.ViewSet, generics.RetrieveAPIView, generics.CreateAPI
 
 class UserCompanyViewSet(viewsets.ModelViewSet, generics.ListAPIView, generics.CreateAPIView):
     queryset = Company.objects.all()
-    serializer_class = CompanySerializer
+    serializer_class = AddCompanySerializer
 
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
