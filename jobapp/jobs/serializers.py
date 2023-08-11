@@ -90,7 +90,7 @@ class CommentSerializer(ModelSerializer):
         exclude = ['company']
 
 
-class ImageTourSerializer(ModelSerializer):
+class ImageCompanySerializer(ModelSerializer):
     image_path = serializers.SerializerMethodField(source='image')
 
     def get_image_path(self, obj):
@@ -146,11 +146,17 @@ class CompanySerializer(ModelSerializer):
     user = UserCompany()
     image_path = serializers.SerializerMethodField(source='logo')
 
-    def get_user(self, obj):
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            return UserCompany(request.user).data
-        return None
+    def get_city(self, obj):
+        return obj.city.name
+
+    # Thêm trường SerializerMethodField để hiển thị tên công ty
+    city = serializers.SerializerMethodField()
+
+    # def get_user(self, obj):
+    #     request = self.context.get('request')
+    #     if request and request.user.is_authenticated:
+    #         return UserCompany(request.user).data
+    #     return None
 
     def get_image_path(self, obj):
         if obj.logo:
@@ -165,8 +171,12 @@ class CompanySerializer(ModelSerializer):
 class JobSerializer(ModelSerializer):
     company = CompanySerializer()
     employee = EmployeeSerializer()
-    city = CitySerializer()
 
+    def get_city(self, obj):
+        return obj.city.name
+
+    # Thêm trường SerializerMethodField để hiển thị tên công ty
+    city = serializers.SerializerMethodField()
     def get_majors(self, obj):
         return obj.majors.all().values_list('name', flat=True)
 

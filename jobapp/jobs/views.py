@@ -46,7 +46,11 @@ class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
         kw = self.request.query_params.get('kw')
         if kw:
             queryset = queryset.filter(name__icontains=kw)
-        return Response(self.serializer_class(queryset, many=True).data, status=status.HTTP_200_OK)
+        page = self.paginate_queryset(queryset)  # Sử dụng phân trang của CompanyPaginator
+
+        serializer = self.serializer_class(page, many=True)
+        return self.get_paginated_response(serializer.data)
+        # return Response(self.serializer_class(queryset, many=True).data, status=status.HTTP_200_OK)
 
     @action(methods=['get'], detail=True, url_path='jobs')
     def get_jobs(self, request, pk):
@@ -59,18 +63,35 @@ class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
 
         return Response(data=JobSerializer(jobs, many=True).data, status=status.HTTP_200_OK)
 
+    @action(methods=['get'], detail=True, url_path='comments')
+    def list_comments(self, request, pk):
+        company = self.get_object()
+        comments = company.comments.all()
+
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(comments, request)
+        serializer = CommentSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
+    @action(methods=['get'], detail=True, url_path='images')
+    def get_images(self, request, pk):
+        images = self.get_object().images
+        return Response(data=ImageCompanySerializer(images, many=True, context={'request': request}).data,
+                        status=status.HTTP_200_OK)
+
 
 class CityViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
     queryset = City.objects.filter(active=True).prefetch_related('companies', 'jobs')
     serializer_class = CitySerializer
     permission_classes = [permissions.AllowAny]
 
-    def list(self, request):
+    def get_queryset(self):
         queryset = self.queryset
         kw = self.request.query_params.get('kw')
+
         if kw:
             queryset = queryset.filter(name__icontains=kw)
-        return Response(self.serializer_class(queryset, many=True).data, status=status.HTTP_200_OK)
+        return queryset
 
     @action(methods=['get'], detail=True, url_path='companies')
     def get_companies(self, request, pk):
@@ -98,14 +119,39 @@ class CityViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
 class JobViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
     queryset = Job.objects.filter(Q(is_checked=True) & Q(active=True))
     serializer_class = JobSerializer
+    pagination_class = JobPaginator
     permission_classes = [permissions.AllowAny]
 
-    def list(self, request):
-        queryset = self.queryset
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        # Lọc công việc theo tên công ty
+        company_id = self.request.query_params.get('company_id')
+        if company_id:
+            queryset = queryset.filter(company_id=company_id)
+
+        # Lọc công việc theo tên công việc
         kw = self.request.query_params.get('kw')
         if kw:
             queryset = queryset.filter(name__icontains=kw)
-        return Response(self.serializer_class(queryset, many=True).data, status=status.HTTP_200_OK)
+
+        # Lọc công việc theo mức lương
+        min_salary = self.request.query_params.get('min_salary')
+        max_salary = self.request.query_params.get('max_salary')
+        if min_salary and max_salary:
+            queryset = queryset.filter(salary_from__gte=min_salary, salary_to__lte=max_salary)
+
+        # Lọc công việc theo thành phố
+        city_id = self.request.query_params.get('city_id')
+        if city_id:
+            queryset = queryset.filter(city_id=city_id)
+
+        # Lọc công việc có yêu cầu kinh nghiệm
+        experience_required = self.request.query_params.get('experience_required')
+        if experience_required:
+            queryset = queryset.filter(experience_required=True)
+
+        return queryset
 
 
 class UserViewSet(viewsets.ViewSet, generics.RetrieveAPIView, generics.CreateAPIView, generics.UpdateAPIView):
@@ -160,18 +206,28 @@ class UserViewSet(viewsets.ViewSet, generics.RetrieveAPIView, generics.CreateAPI
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
-class UserCompanyViewSet(viewsets.ModelViewSet, generics.CreateAPIView):
-    queryset = Company.objects.all()
+class UserCompanyViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.ListAPIView, generics.UpdateAPIView):
+    # queryset = Company.objects.all()
+    queryset = Company.objects.filter(Q(is_checked=True) & Q(active=True)).order_by('create_date')
     serializer_class = AddCompanySerializer
     pagination_class = CompanyPaginator
+    permission_classes = [OwnerCompanyPermission]
+
     def get_queryset(self):
         if self.request.user.is_authenticated:
             user = self.request.user
             return Company.objects.filter(user=user)
         else:
-            # Trả về queryset rỗng nếu người dùng chưa đăng nhập
-            # return Company.objects.none()
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            return Company.objects.none()
+
+    def list(self, request):
+        queryset = self.get_queryset()  # Lấy queryset dựa trên user
+        kw = self.request.query_params.get('kw')  # Lấy tham số tìm kiếm
+        if kw:
+            queryset = queryset.filter(name__icontains=kw)  # Lọc theo tên công ty
+        page = self.paginate_queryset(queryset)  # Phân trang
+        serializer = self.get_serializer(page, many=True)
+        return self.get_paginated_response(serializer.data)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
