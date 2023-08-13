@@ -27,6 +27,7 @@ import random, hashlib
 from rest_framework.parsers import MultiPartParser
 from django.conf import settings
 from django.db.models import F
+from django.core.exceptions import ObjectDoesNotExist
 
 
 class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
@@ -64,14 +65,11 @@ class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
         return Response(data=JobSerializer(jobs, many=True).data, status=status.HTTP_200_OK)
 
     @action(methods=['get'], detail=True, url_path='comments')
-    def list_comments(self, request, pk):
-        company = self.get_object()
-        comments = company.comments.all()
-
-        paginator = self.pagination_class()
-        page = paginator.paginate_queryset(comments, request)
-        serializer = CommentSerializer(page, many=True)
-        return paginator.get_paginated_response(serializer.data)
+    def comments(self, request, pk=None):
+        company = self.get_object()  # Lấy đối tượng công ty dựa trên pk
+        comments = Comment.objects.filter(company=company)  # Lấy danh sách bình luận của công ty
+        serializer = CommentSerializer(comments, many=True)
+        return Response(serializer.data)
 
     @action(methods=['get'], detail=True, url_path='images')
     def get_images(self, request, pk):
@@ -167,6 +165,26 @@ class UserViewSet(viewsets.ViewSet, generics.RetrieveAPIView, generics.CreateAPI
             return [UserOwnerPermission()]
         return [permissions.AllowAny()]
 
+    def create(self, request, *args, **kwargs):
+        role_id = request.data.get('role', None)
+
+        try:
+            role = Role.objects.get(id=role_id)
+            if role.name not in ['Candidate', 'Company']:
+                return Response({'error': 'Invalid role'}, status=status.HTTP_400_BAD_REQUEST)
+        except ObjectDoesNotExist:
+            return Response({'error': 'Role does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user_data = request.data.copy()
+        user_data['role'] = role.id
+
+        serializer = self.get_serializer(data=user_data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
     @action(methods=['get'], url_path='current_user', detail=False)
     def current_user(self, request):
         return Response(data=UserSerializer(request.user).data, status=status.HTTP_200_OK)
@@ -223,11 +241,101 @@ class UserCompanyViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.List
     def list(self, request):
         queryset = self.get_queryset()  # Lấy queryset dựa trên user
         kw = self.request.query_params.get('kw')  # Lấy tham số tìm kiếm
+        is_checked = self.request.query_params.get('is_checked')  # Lấy tham số is_checked
+
+        if is_checked:
+            if is_checked == 'true':
+                # Lọc các công ty có is_checked là True
+                queryset = queryset.filter(is_checked=True)
+            elif is_checked == 'false':
+                # Lọc các công ty có is_checked là False
+                queryset = queryset.filter(is_checked=False)
+
         if kw:
             queryset = queryset.filter(name__icontains=kw)  # Lọc theo tên công ty
+
         page = self.paginate_queryset(queryset)  # Phân trang
         serializer = self.get_serializer(page, many=True)
         return self.get_paginated_response(serializer.data)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    @action(detail=True, methods=['get'])
+    def list_employee_in_company(self, request, pk=None):
+        company = self.get_object()
+        employees = Employee.objects.filter(company=company)
+        return Response(EmployeeSerializer(employees, many=True).data)
+
+    @action(detail=True, methods=['post'])
+    def create_employee(self, request, pk=None):
+        company = self.get_object()  # Lấy đối tượng công ty dựa trên pk
+
+        # Tạo người dùng
+        user_serializer = UserSerializer(data=request.data)
+        user_serializer.is_valid(raise_exception=True)
+        user = user_serializer.save()
+
+        # Tạo nhân viên
+        employee_data = {
+            'user': user.id,
+            'company': company.id,
+            'role': request.data.get('role')
+        }
+        employee_serializer = AddEmployee(data=employee_data)
+        employee_serializer.is_valid(raise_exception=True)
+        employee = employee_serializer.save()
+
+        return Response({
+            'company': CompanySerializer(company).data,
+            'employee': EmployeeSerializer(employee).data
+        }, status=status.HTTP_201_CREATED)
+
+
+class CommentViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAPIView):
+    queryset = Comment.objects.all()
+    serializer_class = AddCommentSerializer
+
+    def get_permissions(self):
+        if self.action in ['partial_update', 'update', 'destroy']:
+            return [OwnerPermission()]
+        return [permissions.IsAuthenticated()]
+
+    def create(self, request):
+        user = request.user
+        if user:
+            try:
+                content = request.data.get('content')
+                rating = request.data.get('rating')
+                company = Company.objects.get(pk=request.data.get('company'))
+            except:
+                return Response(status=status.HTTP_400_BAD_REQUEST)
+            if company and content:
+                comment = Comment.objects.create(user=user, company=company, content=content, rating=rating)
+                return Response(data=AddCommentSerializer(comment).data, status=status.HTTP_201_CREATED)
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response(data={"error_message": "User not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+# class EmployeeCompanyViewset(viewsets.ViewSet):
+#  @action(detail=False, methods=['POST'],
+#             permission_classes=[IsAuthenticated, (AdminPermission | OwnerEmployeePermission)])
+#     def create_job(self, request):
+#         user = request.user
+#
+#         try:
+#             employee = Employee.objects.get(user=user)
+#         except Employee.DoesNotExist:
+#             return Response({"message": "Không tìm thấy nhân viên tương ứng."}, status=status.HTTP_400_BAD_REQUEST)
+#
+#         company = employee.company
+#
+#         job_data = request.data.copy()
+#         job_data['employee'] = employee.id
+#         job_data['company'] = company.id
+#
+#         serializer = JobSerializer(data=job_data)
+#         serializer.is_valid(raise_exception=True)
+#         job = serializer.save()
+#
+#         return Response(serializer.data, status=status.HTTP_201_CREATED)
