@@ -317,25 +317,39 @@ class CommentViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyA
         else:
             return Response(data={"error_message": "User not found"}, status=status.HTTP_400_BAD_REQUEST)
 
-# class EmployeeCompanyViewset(viewsets.ViewSet):
-#  @action(detail=False, methods=['POST'],
+
+# class EmployeeCompanyViewset(viewsets.ViewSet, generics.UpdateAPIView):
+#     queryset = Employee.objects.all()
+#     serializer_class = JobSerializer
+#     pagination_class = CompanyPaginator
+#     permission_classes = [OwnerEmployeePermission]
+#
+#     @action(detail=False, methods=['post'],
 #             permission_classes=[IsAuthenticated, (AdminPermission | OwnerEmployeePermission)])
-#     def create_job(self, request):
-#         user = request.user
+#     def create_job(self, request, pk=None):
+#         employee_id = request.data.get('employee_id')
+#         print(employee_id)
 #
 #         try:
-#             employee = Employee.objects.get(user=user)
+#             employee = Employee.objects.get(id=employee_id)
+#             print(employee)
 #         except Employee.DoesNotExist:
-#             return Response({"message": "Không tìm thấy nhân viên tương ứng."}, status=status.HTTP_400_BAD_REQUEST)
+#             return Response({"error": "Employee not found"}, status=status.HTTP_404_NOT_FOUND)
 #
-#         company = employee.company
+#         job_data = {
+#             "company": employee.company.id,
+#             "name": request.data.get('name'),
+#             "description": request.data.get('description'),
+#             "salary_from": request.data.get('salary_from'),
+#             "salary_to": request.data.get('salary_to'),
+#             "age_from": request.data.get('age_from'),
+#             "age_to": request.data.get('age_to'),
+#             # Các trường thông tin khác của công việc
+#             "employee": employee.id
+#         }
 #
-#         job_data = request.data.copy()
-#         job_data['employee'] = employee.id
-#         job_data['company'] = company.id
+#         job_serializer = JobSerializer(data=job_data)
+#         job_serializer.is_valid(raise_exception=True)
+#         new_job = job_serializer.save()
 #
-#         serializer = JobSerializer(data=job_data)
-#         serializer.is_valid(raise_exception=True)
-#         job = serializer.save()
-#
-#         return Response(serializer.data, status=status.HTTP_201_CREATED)
+#         return Response(JobSerializer(new_job).data, status=status.HTTP_201_CREATED)
