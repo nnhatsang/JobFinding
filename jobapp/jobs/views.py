@@ -28,6 +28,8 @@ from rest_framework.parsers import MultiPartParser
 from django.conf import settings
 from django.db.models import F
 from django.core.exceptions import ObjectDoesNotExist
+from rest_framework.filters import SearchFilter
+from rest_framework.exceptions import PermissionDenied
 
 
 class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
@@ -35,23 +37,15 @@ class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
     serializer_class = CompanySerializer
     pagination_class = CompanyPaginator
     permission_classes = [permissions.AllowAny]
+    filter_backends = [SearchFilter]
+    search_fields = ['name', 'city__name']  # Các trường cần tìm kiếm
 
-    # def get_queryset(self):
-    #     query = self.queryset
-    #     kw = self.request.query_params.get('kw')
-    #     if kw:
-    #         query = query.filter(name__icontains=kw)
-    #     return query
-    def list(self, request):
-        queryset = self.queryset
-        kw = self.request.query_params.get('kw')
-        if kw:
-            queryset = queryset.filter(name__icontains=kw)
-        page = self.paginate_queryset(queryset)  # Sử dụng phân trang của CompanyPaginator
+    def filter_queryset(self, queryset):
+        q = self.request.query_params.get("q")
+        if q:
+            queryset = queryset.filter(name__icontains=q) | queryset.filter(city__name__icontains=q)
 
-        serializer = self.serializer_class(page, many=True)
-        return self.get_paginated_response(serializer.data)
-        # return Response(self.serializer_class(queryset, many=True).data, status=status.HTTP_200_OK)
+        return queryset
 
     @action(methods=['get'], detail=True, url_path='jobs')
     def get_jobs(self, request, pk):
@@ -77,18 +71,46 @@ class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
         return Response(data=ImageCompanySerializer(images, many=True, context={'request': request}).data,
                         status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=['get'], permission_classes=[permissions.AllowAny])
+    def get_company_images(self, request, pk=None):
+        company = self.get_object()
+        images = company.images.all()  # Lấy tất cả hình ảnh của công ty
+
+        image_serializer = ImageCompanySerializer(images, many=True)
+        return Response(image_serializer.data, status=status.HTTP_200_OK)
+
+
+    # @action(detail=True, methods=['post'], permission_classes=[OwnerCompanyPermission])
+    # def company_image(self, request, pk=None):
+    #     company = self.get_object()
+    #
+    #     image_data = {
+    #         'image': request.data.get('image'),
+    #         'descriptions': request.data.get('descriptions'),
+    #         'company': company.id
+    #     }
+    #
+    #     image_serializer = ImageCompanySerializer(data=image_data)
+    #     image_serializer.is_valid(raise_exception=True)
+    #     image_serializer.save()
+    #
+    #     return Response({"message": "Image created successfully"}, status=status.HTTP_201_CREATED)
+
+
 
 class CityViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
     queryset = City.objects.filter(active=True).prefetch_related('companies', 'jobs')
     serializer_class = CitySerializer
     permission_classes = [permissions.AllowAny]
+    filter_backends = [SearchFilter]
+    search_fields = ['name']  # Các trường cần tìm kiếm
 
-    def get_queryset(self):
-        queryset = self.queryset
-        kw = self.request.query_params.get('kw')
+    def filter_queryset(self, queryset):
+        # Lọc theo tên thành phố
+        q = self.request.query_params.get("q")
+        if q:
+            queryset = queryset.filter(name__icontains=q)
 
-        if kw:
-            queryset = queryset.filter(name__icontains=kw)
         return queryset
 
     @action(methods=['get'], detail=True, url_path='companies')
@@ -119,35 +141,44 @@ class JobViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVie
     serializer_class = JobSerializer
     pagination_class = JobPaginator
     permission_classes = [permissions.AllowAny]
+    filter_backends = [SearchFilter]
+    search_fields = ['name', 'description']  # Các trường cần tìm kiếm
 
-    def get_queryset(self):
-        queryset = super().get_queryset()
+    def filter_queryset(self, queryset):
+        # Lọc theo tên công việc và mô tả
+        q = self.request.query_params.get("q")
+        if q:
+            queryset = queryset.filter(name__icontains=q) | queryset.filter(description__icontains=q)
 
-        # Lọc công việc theo tên công ty
-        company_id = self.request.query_params.get('company_id')
-        if company_id:
-            queryset = queryset.filter(company_id=company_id)
+        # Lọc theo mức lương
+        salary_from = self.request.query_params.get('salary_from')
+        salary_to = self.request.query_params.get('salary_to')
+        if salary_from and salary_to:
+            queryset = queryset.filter(salary_from__gte=salary_from, salary_to__lte=salary_to)
+        elif salary_from:
+            queryset = queryset.filter(salary_from__gte=salary_from)
+        elif salary_to:
+            queryset = queryset.filter(salary_to__lte=salary_to)
 
-        # Lọc công việc theo tên công việc
-        kw = self.request.query_params.get('kw')
-        if kw:
-            queryset = queryset.filter(name__icontains=kw)
+        # Lọc theo tên chuyên ngành (major name)
+        major_name = self.request.query_params.get('major_name')
+        if major_name:
+            queryset = queryset.filter(majors__name__icontains=major_name)
 
-        # Lọc công việc theo mức lương
-        min_salary = self.request.query_params.get('min_salary')
-        max_salary = self.request.query_params.get('max_salary')
-        if min_salary and max_salary:
-            queryset = queryset.filter(salary_from__gte=min_salary, salary_to__lte=max_salary)
+        # Lọc theo độ tuổi
+        age_from = self.request.query_params.get('age_from')
+        age_to = self.request.query_params.get('age_to')
+        if age_from and age_to:
+            queryset = queryset.filter(Q(age_from__lte=age_to) & Q(age_to__gte=age_from))
+        elif age_from:
+            queryset = queryset.filter(age_to__gte=age_from)
+        elif age_to:
+            queryset = queryset.filter(age_from__lte=age_to)
 
-        # Lọc công việc theo thành phố
-        city_id = self.request.query_params.get('city_id')
-        if city_id:
-            queryset = queryset.filter(city_id=city_id)
-
-        # Lọc công việc có yêu cầu kinh nghiệm
-        experience_required = self.request.query_params.get('experience_required')
-        if experience_required:
-            queryset = queryset.filter(experience_required=True)
+        # Lọc theo tên thành phố (city name)
+        city_name = self.request.query_params.get('city_name')
+        if city_name:
+            queryset = queryset.filter(city__name__icontains=city_name)
 
         return queryset
 
@@ -234,9 +265,20 @@ class UserCompanyViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.List
     def get_queryset(self):
         if self.request.user.is_authenticated:
             user = self.request.user
-            return Company.objects.filter(user=user)
+            role_name = user.role.name
+
+            if role_name in ["Company", "Employee"]:
+                if role_name == "Company":
+                    queryset = Company.objects.filter(user=user)
+                else:
+                    employee = Employee.objects.get(user=user)
+                    queryset = Company.objects.filter(id=employee.company.id)
+            else:
+                queryset = Company.objects.none()
         else:
-            return Company.objects.none()
+            queryset = Company.objects.none()
+
+        return queryset
 
     def list(self, request):
         queryset = self.get_queryset()  # Lấy queryset dựa trên user
@@ -271,25 +313,54 @@ class UserCompanyViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.List
     def create_employee(self, request, pk=None):
         company = self.get_object()  # Lấy đối tượng công ty dựa trên pk
 
-        # Tạo người dùng
-        user_serializer = UserSerializer(data=request.data)
+        role_name = request.data.get('role')
+        if role_name not in ['Company', 'Employee', 'Candidate']:
+            return Response({"error": "Invalid role name"}, status=status.HTTP_400_BAD_REQUEST)
+
+        user_data = {
+            'username': request.data.get('username'),
+            'password': request.data.get('password'),
+            'email': request.data.get('email'),
+            'avatar': request.data.get('avatar'),
+            'dob': request.data.get('dob'),
+            'description': request.data.get('description'),
+            'gender': request.data.get('gender'),
+            'phone': request.data.get('phone'),
+            'address': request.data.get('address')
+        }
+
+        user_serializer = UserSerializer(data=user_data)
         user_serializer.is_valid(raise_exception=True)
         user = user_serializer.save()
 
-        # Tạo nhân viên
-        employee_data = {
-            'user': user.id,
-            'company': company.id,
-            'role': request.data.get('role')
-        }
-        employee_serializer = AddEmployee(data=employee_data)
-        employee_serializer.is_valid(raise_exception=True)
-        employee = employee_serializer.save()
+        if role_name == 'Company':
+            company_data = {
+                'user': user.id,
+                'name': request.data.get('name'),
+                'email': request.data.get('email'),
+                'logo': request.data.get('logo'),
+                'address': request.data.get('company_address'),
+                'city': request.data.get('city_id'),
+                'description': request.data.get('company_description'),
+                'is_checked': request.data.get('is_checked')
+            }
+            company_serializer = CompanySerializer(data=company_data)
+            company_serializer.is_valid(raise_exception=True)
+            company = company_serializer.save()
 
-        return Response({
-            'company': CompanySerializer(company).data,
-            'employee': EmployeeSerializer(employee).data
-        }, status=status.HTTP_201_CREATED)
+        elif role_name == 'Employee':
+            employee_data = {
+                'user': user.id,
+                'company': company.id,
+                'role': Role.objects.get(name='Employee').id
+            }
+            employee_serializer = EmployeeSerializer(data=employee_data)
+            employee_serializer.is_valid(raise_exception=True)
+            employee = employee_serializer.save()
+
+        # Nếu role là Candidate, sẽ không cần tạo thêm đối tượng
+
+        return Response({"message": "Employee created successfully"}, status=status.HTTP_201_CREATED)
 
 
 class CommentViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAPIView):
@@ -318,38 +389,51 @@ class CommentViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyA
             return Response(data={"error_message": "User not found"}, status=status.HTTP_400_BAD_REQUEST)
 
 
-# class EmployeeCompanyViewset(viewsets.ViewSet, generics.UpdateAPIView):
-#     queryset = Employee.objects.all()
-#     serializer_class = JobSerializer
-#     pagination_class = CompanyPaginator
-#     permission_classes = [OwnerEmployeePermission]
-#
-#     @action(detail=False, methods=['post'],
-#             permission_classes=[IsAuthenticated, (AdminPermission | OwnerEmployeePermission)])
-#     def create_job(self, request, pk=None):
-#         employee_id = request.data.get('employee_id')
-#         print(employee_id)
-#
-#         try:
-#             employee = Employee.objects.get(id=employee_id)
-#             print(employee)
-#         except Employee.DoesNotExist:
-#             return Response({"error": "Employee not found"}, status=status.HTTP_404_NOT_FOUND)
-#
-#         job_data = {
-#             "company": employee.company.id,
-#             "name": request.data.get('name'),
-#             "description": request.data.get('description'),
-#             "salary_from": request.data.get('salary_from'),
-#             "salary_to": request.data.get('salary_to'),
-#             "age_from": request.data.get('age_from'),
-#             "age_to": request.data.get('age_to'),
-#             # Các trường thông tin khác của công việc
-#             "employee": employee.id
-#         }
-#
-#         job_serializer = JobSerializer(data=job_data)
-#         job_serializer.is_valid(raise_exception=True)
-#         new_job = job_serializer.save()
-#
-#         return Response(JobSerializer(new_job).data, status=status.HTTP_201_CREATED)
+class EmployeeCompanyViewset(viewsets.ViewSet, generics.UpdateAPIView, ):
+    queryset = Employee.objects.all()
+    serializer_class = JobSerializer
+    pagination_class = CompanyPaginator
+    permission_classes = [IsAuthenticated, OwnerEmployeePermission | OwnerCompanyPermission]
+
+    @action(detail=False, methods=['post'],
+            permission_classes=[IsAuthenticated, OwnerEmployeePermission, OwnerCompanyPermission])
+    def create_job(self, request):
+        # Lấy thông tin người dùng đăng nhập
+        user = self.request.user
+        role_name = user.role.name
+
+        # Kiểm tra role_name nếu không phải là "Company" hoặc "Employee" thì không được thêm công việc
+        if role_name not in ["Company", "Employee"]:
+            raise PermissionDenied("You don't have the required role to create a job.")
+
+        try:
+            # Lấy thông tin employee từ thông tin người dùng
+            employee = Employee.objects.get(user=user)
+        except Employee.DoesNotExist:
+            return Response({"error": "Employee not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        job_data = {
+            "company": employee.company.id,
+            "name": request.data.get('name'),
+            "description": request.data.get('description'),
+            "salary_from": request.data.get('salary_from'),
+            "salary_to": request.data.get('salary_to'),
+            "age_from": request.data.get('age_from'),
+            "age_to": request.data.get('age_to'),
+
+            "position": request.data.get('position'),
+            "degree_required": request.data.get('degree_required'),
+            "end_date": request.data.get('end_date'),
+            "city": request.data.get('city'),
+            "end_date": request.data.get('end_date'),
+            "job_required": request.data.get('job_required'),
+
+            # Các trường thông tin khác của công việc
+            "employee": employee.id
+        }
+
+        job_serializer = AddJobSerializer(data=job_data)
+        job_serializer.is_valid(raise_exception=True)
+        new_job = job_serializer.save()
+
+        return Response(JobSerializer(new_job).data, status=status.HTTP_201_CREATED)
