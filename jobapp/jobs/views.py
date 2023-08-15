@@ -71,32 +71,6 @@ class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
         return Response(data=ImageCompanySerializer(images, many=True, context={'request': request}).data,
                         status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['get'], permission_classes=[permissions.AllowAny])
-    def get_company_images(self, request, pk=None):
-        company = self.get_object()
-        images = company.images.all()  # Lấy tất cả hình ảnh của công ty
-
-        image_serializer = ImageCompanySerializer(images, many=True)
-        return Response(image_serializer.data, status=status.HTTP_200_OK)
-
-
-    # @action(detail=True, methods=['post'], permission_classes=[OwnerCompanyPermission])
-    # def company_image(self, request, pk=None):
-    #     company = self.get_object()
-    #
-    #     image_data = {
-    #         'image': request.data.get('image'),
-    #         'descriptions': request.data.get('descriptions'),
-    #         'company': company.id
-    #     }
-    #
-    #     image_serializer = ImageCompanySerializer(data=image_data)
-    #     image_serializer.is_valid(raise_exception=True)
-    #     image_serializer.save()
-    #
-    #     return Response({"message": "Image created successfully"}, status=status.HTTP_201_CREATED)
-
-
 
 class CityViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
     queryset = City.objects.filter(active=True).prefetch_related('companies', 'jobs')
@@ -220,18 +194,6 @@ class UserViewSet(viewsets.ViewSet, generics.RetrieveAPIView, generics.CreateAPI
     def current_user(self, request):
         return Response(data=UserSerializer(request.user).data, status=status.HTTP_200_OK)
 
-    @action(methods=['get'], url_path='applications', detail=False)
-    def get_list_user_applications(self, request):
-        user = request.user
-        if user:
-            applications = Application.objects.filter(user=user)
-            paginator = pagination.PageNumberPagination()
-            paginator.page_size = 10
-            applications = paginator.paginate_queryset(applications, request)
-            return paginator.get_paginated_response(ApplicationSerializer(applications, many=True).data)
-        else:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-
     @action(methods=['post'], url_path='change_password', detail=True)
     def change_password(self, request, pk):
         user = request.user
@@ -241,18 +203,6 @@ class UserViewSet(viewsets.ViewSet, generics.RetrieveAPIView, generics.CreateAPI
             user.save()
             return Response(status=status.HTTP_200_OK)
         return Response(status=status.HTTP_400_BAD_REQUEST)
-
-    @action(methods=['get'], url_path='cvs', detail=False)
-    def get_list_user_cvs(self, request):
-        user = request.user
-        if user:
-            cvs = Curriculum_Vitae.objects.filter(user=user)
-            paginator = pagination.PageNumberPagination()
-            paginator.page_size = 10
-            cvs = paginator.paginate_queryset(cvs, request)
-            return paginator.get_paginated_response(CvSerializer(cvs, many=True).data)
-        else:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 class UserCompanyViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.ListAPIView, generics.UpdateAPIView):
@@ -437,3 +387,72 @@ class EmployeeCompanyViewset(viewsets.ViewSet, generics.UpdateAPIView, ):
         new_job = job_serializer.save()
 
         return Response(JobSerializer(new_job).data, status=status.HTTP_201_CREATED)
+
+
+class CvViewSet(viewsets.ViewSet, generics.ListAPIView, generics.UpdateAPIView):
+    queryset = Curriculum_Vitae.objects.filter(is_deleted=False)
+    serializer_class = CvSerializer
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [OwnerPermission()]
+        return [permissions.IsAuthenticated()]
+
+    def get_queryset(self):
+        if self.request.user.is_authenticated:
+            return Curriculum_Vitae.objects.filter(user=self.request.user).order_by('-update_date')
+        return Curriculum_Vitae.objects.none()
+
+    @action(detail=False, methods=['post'])
+    def create_cv(self, request):
+        serializer = AddCvSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(user=self.request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class ApplicationViewset(viewsets.ViewSet, generics.ListAPIView, generics.UpdateAPIView):
+    queryset = Application.objects.all()
+    serializer_class = ApplicationSerializer
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [OwnerPermission()]
+        return [permissions.IsAuthenticated()]
+
+    def get_queryset(self):
+        if self.request.user.is_authenticated:
+            return Application.objects.filter(user=self.request.user).order_by('-update_date')
+        return Application.objects.none()
+
+    @action(detail=False, methods=['post'])
+    def create_application(self, request):
+        user = self.request.user
+        job_id = request.data.get('job_id')  # Lấy thông tin job từ request data
+        cv_id = request.data.get('cv_id')  # Lấy thông tin CV từ request data
+
+        try:
+            job = Job.objects.get(id=job_id)
+        except Job.DoesNotExist:
+            return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        cv = None
+        if cv_id:
+            try:
+                cv = Curriculum_Vitae.objects.get(id=cv_id)
+            except Curriculum_Vitae.DoesNotExist:
+                return Response({"error": "CV not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        application_data = {
+            "user": user.id,
+            "job": job.id,
+            "cv": cv.id if cv else None,  # Lưu cv_id nếu có hoặc None nếu không có
+            "cover_letter": request.data.get('cover_letter'),
+            # Các trường thông tin khác của application
+        }
+
+        application_serializer = ApplicationSerializer(data=application_data)
+        application_serializer.is_valid(raise_exception=True)
+        new_application = application_serializer.save()
+
+        return Response(ApplicationSerializer(new_application).data, status=status.HTTP_201_CREATED)

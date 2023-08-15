@@ -28,9 +28,9 @@ from rest_framework_simplejwt.views import (
 
 schema_view = get_schema_view(
     openapi.Info(
-        title="Tour API",
+        title="Job API",
         default_version='v1',
-        description="APIs for TourApp",
+        description="APIs for JobApp",
         contact=openapi.Contact(email="nhhatsang57@gmail.com"),
         license=openapi.License(name="Nguyễn Nhật Sang"),
     ),

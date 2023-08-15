@@ -17,11 +17,14 @@ class AddCommentSerializer(ModelSerializer):
         }
 
 
-# class EmplyeeSerializer(ModelSerializer):
-
-
 class UserSerializer(ModelSerializer):
     avatar_path = serializers.SerializerMethodField(source='avatar')
+
+    def get_role_name(self, obj):
+        return obj.role.name
+
+    # Thêm trường SerializerMethodField để hiển thị tên công ty
+    role_name = serializers.SerializerMethodField()
 
     # role = serializers.PrimaryKeyRelatedField(queryset=Role.objects.filter(name__in=['Candidate', 'Company']))
 
@@ -32,7 +35,8 @@ class UserSerializer(ModelSerializer):
 
     class Meta:
         model = User
-        exclude = ['user_permissions', 'groups', 'is_staff']
+        exclude = ['user_permissions', 'groups', 'is_staff', 'role', 'is_active', 'is_superuser']
+
         extra_kwargs = {
             'password': {
                 'write_only': True
@@ -95,14 +99,6 @@ class MajorSerializer(ModelSerializer):
         fields = ['name']
 
 
-class CommentSerializer(ModelSerializer):
-    user = UserSerializer()
-
-    class Meta:
-        model = Comment
-        exclude = ['company']
-
-
 class ImageCompanySerializer(ModelSerializer):
     image_path = serializers.SerializerMethodField(source='image')
 
@@ -127,12 +123,34 @@ class CitySerializer(ModelSerializer):
         fields = ['name']
 
 
+class UserCvSerializer(ModelSerializer):
+    class Meta(UserSerializer.Meta):
+        exclude = ['last_login', 'date_joined', 'role', 'is_superuser', 'is_staff', 'is_active', 'user_permissions',
+                   'groups']
+        # fields = [
+        #     'username', 'first_name', 'last_name', 'email', 'dob', 'description', 'gender', 'phone', 'address',
+        #     'avatar_path',
+        # ]
+
+
 class CvSerializer(ModelSerializer):
-    user = UserSerializer()
+    user = UserCvSerializer()
 
     class Meta:
         model = Curriculum_Vitae
         exclude = ['active', 'is_deleted']
+
+
+class AddCvSerializer(ModelSerializer):
+    class Meta:
+        model = Curriculum_Vitae
+        fields = ['id', 'career_goals', 'degree_detail', 'experience_detail', 'skill', 'cv_link', 'foreignLanguage',
+                  'user']
+        extra_kwargs = {
+            'user': {
+                'read_only': True
+            }
+        }
 
 
 class EmployeeSerializer(ModelSerializer):
@@ -156,14 +174,17 @@ class EmployeeSerializer(ModelSerializer):
 
 
 class CompanySerializer(ModelSerializer):
-    user = UserCompany()
     image_path = serializers.SerializerMethodField(source='logo')
+
+    def get_company_of(self, obj):
+        return obj.user.username
 
     def get_city(self, obj):
         return obj.city.name
 
     # Thêm trường SerializerMethodField để hiển thị tên công ty
     city = serializers.SerializerMethodField()
+    company_of = serializers.SerializerMethodField()
 
     # def get_user(self, obj):
     #     request = self.context.get('request')
@@ -178,7 +199,7 @@ class CompanySerializer(ModelSerializer):
 
     class Meta:
         model = Company
-        fields = ['id', 'name', 'email', 'image_path', 'description', 'address', 'city', 'user']
+        fields = ['id', 'name', 'email', 'image_path', 'description', 'address', 'city', 'company_of']
 
 
 class AddJobSerializer(ModelSerializer):
@@ -187,15 +208,26 @@ class AddJobSerializer(ModelSerializer):
         exclude = ['is_deleted', 'is_checked', 'active']
 
 
+class CommentSerializer(ModelSerializer):
+    user = UserCvSerializer()
+
+    class Meta:
+        model = Comment
+        exclude = ['company', 'active']
+
+
 class JobSerializer(ModelSerializer):
-    company = CompanySerializer()
-    employee = EmployeeSerializer()
+    # company = CompanySerializer()
 
     def get_city(self, obj):
         return obj.city.name
 
+    def get_company(self, obj):
+        return obj.company.name
+
     # Thêm trường SerializerMethodField để hiển thị tên công ty
     city = serializers.SerializerMethodField()
+    company = serializers.SerializerMethodField()
 
     def get_majors(self, obj):
         return obj.majors.all().values_list('name', flat=True)
@@ -205,13 +237,16 @@ class JobSerializer(ModelSerializer):
 
     class Meta:
         model = Job
-        exclude = ['is_deleted', 'is_checked', 'active']
+        exclude = ['is_deleted', 'is_checked', 'active', 'employee']
 
 
 class ApplicationSerializer(ModelSerializer):
-    cv = CvSerializer()
-    user = UserSerializer()
-    job = JobSerializer()
+    # cv = CvSerializer()
+
+    def get_job_name(self, obj):
+        return obj.job.name
+
+    job_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Application
