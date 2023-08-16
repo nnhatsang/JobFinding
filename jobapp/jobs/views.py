@@ -71,6 +71,19 @@ class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
         return Response(data=ImageCompanySerializer(images, many=True, context={'request': request}).data,
                         status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=['get'], permission_classes=[OwnerCompanyPermission])
+    def employees(self, request, pk=None):
+        company = self.get_object()  # Lấy đối tượng công ty dựa trên pk
+        employees = company.employees.all()  # Lấy danh sách các employee của công ty
+
+        # Tùy chọn lọc theo tên employee, ví dụ: ?kw=John
+        kw = self.request.query_params.get('kw')
+        if kw is not None:
+            employees = employees.filter(user__username__icontains=kw)
+
+        serializer = EmployeeSerializer(employees, many=True)
+        return Response(serializer.data)
+
 
 class CityViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
     queryset = City.objects.filter(active=True).prefetch_related('companies', 'jobs')
@@ -155,6 +168,54 @@ class JobViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVie
             queryset = queryset.filter(city__name__icontains=city_name)
 
         return queryset
+
+    @action(detail=False, methods=['post'],
+            permission_classes=[IsAuthenticated, OwnerEmployeePermission, OwnerCompanyPermission])
+    def create_job(self, request):
+        # Lấy thông tin người dùng đăng nhập
+        user = self.request.user
+        role_name = user.role.name
+
+        # Kiểm tra role_name nếu không phải là "Company" hoặc "Employee" thì không được thêm công việc
+        if role_name not in ["Company", "Employee"]:
+            raise PermissionDenied("You don't have the required role to create a job.")
+
+        try:
+            # Lấy thông tin employee từ thông tin người dùng
+            employee = Employee.objects.get(user=user)
+        except Employee.DoesNotExist:
+            return Response({"error": "Employee not found"}, status=status.HTTP_404_NOT_FOUND)
+        major_ids = request.data.get('major_ids', [])  # Lấy danh sách major_ids từ request
+
+        job_data = {
+            "company": employee.company.id,
+            "name": request.data.get('name'),
+            "description": request.data.get('description'),
+            "salary_from": request.data.get('salary_from'),
+            "salary_to": request.data.get('salary_to'),
+            "age_from": request.data.get('age_from'),
+            "age_to": request.data.get('age_to'),
+
+            "position": request.data.get('position'),
+            "degree_required": request.data.get('degree_required'),
+            "end_date": request.data.get('end_date'),
+            "city": request.data.get('city'),
+            "end_date": request.data.get('end_date'),
+            "job_required": request.data.get('job_required'),
+            "type_job": request.data.get('type_job'),
+
+            # Các trường thông tin khác của công việc
+            "employee": employee.id
+        }
+
+        job_serializer = AddJobSerializer(data=job_data)
+        job_serializer.is_valid(raise_exception=True)
+        new_job = job_serializer.save()
+        for major_id in major_ids:
+            major = Major.objects.get(pk=major_id)
+            job_serializer.majors.add(major)
+
+        return Response(JobSerializer(new_job).data, status=status.HTTP_201_CREATED)
 
 
 class UserViewSet(viewsets.ViewSet, generics.RetrieveAPIView, generics.CreateAPIView, generics.UpdateAPIView):
@@ -344,49 +405,6 @@ class EmployeeCompanyViewset(viewsets.ViewSet, generics.UpdateAPIView, ):
     serializer_class = JobSerializer
     pagination_class = CompanyPaginator
     permission_classes = [IsAuthenticated, OwnerEmployeePermission | OwnerCompanyPermission]
-
-    @action(detail=False, methods=['post'],
-            permission_classes=[IsAuthenticated, OwnerEmployeePermission, OwnerCompanyPermission])
-    def create_job(self, request):
-        # Lấy thông tin người dùng đăng nhập
-        user = self.request.user
-        role_name = user.role.name
-
-        # Kiểm tra role_name nếu không phải là "Company" hoặc "Employee" thì không được thêm công việc
-        if role_name not in ["Company", "Employee"]:
-            raise PermissionDenied("You don't have the required role to create a job.")
-
-        try:
-            # Lấy thông tin employee từ thông tin người dùng
-            employee = Employee.objects.get(user=user)
-        except Employee.DoesNotExist:
-            return Response({"error": "Employee not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        job_data = {
-            "company": employee.company.id,
-            "name": request.data.get('name'),
-            "description": request.data.get('description'),
-            "salary_from": request.data.get('salary_from'),
-            "salary_to": request.data.get('salary_to'),
-            "age_from": request.data.get('age_from'),
-            "age_to": request.data.get('age_to'),
-
-            "position": request.data.get('position'),
-            "degree_required": request.data.get('degree_required'),
-            "end_date": request.data.get('end_date'),
-            "city": request.data.get('city'),
-            "end_date": request.data.get('end_date'),
-            "job_required": request.data.get('job_required'),
-
-            # Các trường thông tin khác của công việc
-            "employee": employee.id
-        }
-
-        job_serializer = AddJobSerializer(data=job_data)
-        job_serializer.is_valid(raise_exception=True)
-        new_job = job_serializer.save()
-
-        return Response(JobSerializer(new_job).data, status=status.HTTP_201_CREATED)
 
 
 class CvViewSet(viewsets.ViewSet, generics.ListAPIView, generics.UpdateAPIView):

@@ -240,6 +240,12 @@ class JobSerializer(ModelSerializer):
         exclude = ['is_deleted', 'is_checked', 'active', 'employee']
 
 
+class AddMajor(ModelSerializer):
+    class Meta:
+        model = Major
+        exclude = []
+
+
 class ApplicationSerializer(ModelSerializer):
     # cv = CvSerializer()
 

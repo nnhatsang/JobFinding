@@ -5,6 +5,10 @@ from django.contrib.auth.models import AbstractUser
 from ckeditor.fields import RichTextField
 from cloudinary.models import CloudinaryField
 
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+
 # Create your models here.
 
 GENDER_CHOICES = (('male', 'Male'), ('female', 'Female'), ('other', 'Other'),)
@@ -39,7 +43,7 @@ class User(AbstractUser):
     gender = models.BooleanField(default=1)
     phone = models.CharField(null=False, max_length=10)
     address = models.CharField(max_length=255)
-    role = models.ForeignKey(Role, on_delete=models.CASCADE, blank=True, null=True, default=4)
+    role = models.ForeignKey(Role, on_delete=models.CASCADE, blank=True, null=True)
 
     def __str__(self):
         return self.username
@@ -147,3 +151,17 @@ class Comment(BaseModel):
     def __str__(self):
         stars = "⭐" * self.rating
         return f"Username: {self.user.username},Role: {self.user.role},Company {self.company.name} : {self.content}: with rating {stars}"
+
+
+@receiver(post_save, sender=Role)
+def create_default_roles(sender, instance, created, **kwargs):
+    if created:
+        default_roles = [
+            {"name": "Admin"},
+            {"name": "Company"},
+            {"name": "Employee"},
+            {"name": "Candidate"},
+            # Thêm các bản ghi khác nếu cần
+        ]
+        for role_data in default_roles:
+            Role.objects.create(**role_data)

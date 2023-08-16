@@ -28,8 +28,8 @@ from rest_framework_simplejwt.views import (
 
 schema_view = get_schema_view(
     openapi.Info(
-        title="Job API",
-        default_version='v1',
+        title="Finding Job API",
+        default_version='v1.0.0',
         description="APIs for JobApp",
         contact=openapi.Contact(email="nhhatsang57@gmail.com"),
         license=openapi.License(name="Nguyễn Nhật Sang"),
