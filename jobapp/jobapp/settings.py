@@ -159,6 +159,23 @@ STATIC_URL = 'static/'
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
+
+
+#send mail config
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_USE_TLS = True
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_HOST_USER = 'travel.agency.ou.management@gmail.com'
+EMAIL_HOST_PASSWORD = 'dvbrqvpkhcooagil'
+EMAIL_PORT = 587
+
+#auth-social config
+GOOGLE_CLIENT_ID = '223587602728-cgo32g1e3tbkabc4hdhllf6oq79l9cn2.apps.googleusercontent.com'
+GOOGLE_CLIENT_SECRET = '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'
+SOCIAL_SECRET = '@gbklknspajdoughwblwdoiushuolnjhsuyu5w#@#%$'
+
+# //
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-client_id = 'NSsPbLA5TMu1RwmQmVeGbbGYNPSrT9ra8MQzbWfZ'
-client_secret = 'kmhGzhfKrdM9bY2X9nnNIRbaVy30RjwiWAv6aeCkZIB0QUKnFq2Xp46NW6Rv4FMelRaZGiiwxobpr8UsHHliKVkp66t5UVatBKN2DDsffVO3YNh9YgsQlnKuAnWwzIXw'
+client_id = 't4VAi59N3aOa97hUDbFvxc1rK1kl0Rd9ttC6S8Gg'
+client_secret = 'e69l4Ap2UDbfDPs3RQ9ZgwWVGLKJ7zyXvc9DjHmPRvJBKozd5EZhfqfiLtSq1U54mPszthc747ao1tom6IX0TddSAvT5HFplnDDHzc48C5XrXNzms3fJ4QIr68hjdibD'

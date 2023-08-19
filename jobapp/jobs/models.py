@@ -7,7 +7,7 @@ from cloudinary.models import CloudinaryField
 
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-
+from rest_framework_simplejwt.tokens import RefreshToken
 
 # Create your models here.
 
@@ -18,6 +18,11 @@ TYPE_JOB_CHOICES = (
     ('internship', 'Internship'),
     ('contract', 'Contract'),
 )
+
+AUTH_PROVIDERS = {'facebook': 'facebook',
+                  'google': 'google',
+                  'default': 'default'
+                  }
 
 
 class BaseModel(models.Model):
@@ -40,13 +45,24 @@ class User(AbstractUser):
     avatar = CloudinaryField('avatar', default='', null=True)
     dob = models.DateTimeField(null=True, blank=True)
     description = RichTextField(blank=True, null=False)
-    gender = models.BooleanField(default=1)
+    gender = models.CharField(max_length=10, choices=GENDER_CHOICES, default='Male')
     phone = models.CharField(null=False, max_length=10)
     address = models.CharField(max_length=255)
-    role = models.ForeignKey(Role, on_delete=models.CASCADE, blank=True, null=True)
+    role = models.ForeignKey(Role, on_delete=models.CASCADE, blank=True, null=True, default=4)
+
+    auth_provider = models.CharField(
+        max_length=255, blank=False,
+        null=False, default=AUTH_PROVIDERS.get('default'))
 
     def __str__(self):
         return self.username
+
+    def tokens(self):
+        refresh = RefreshToken.for_user(self)
+        return {
+            'refresh': str(refresh),
+            'access': str(refresh.access_token)
+        }
 
 
 class City(BaseModel):
@@ -151,17 +167,3 @@ class Comment(BaseModel):
     def __str__(self):
         stars = "⭐" * self.rating
         return f"Username: {self.user.username},Role: {self.user.role},Company {self.company.name} : {self.content}: with rating {stars}"
-
-
-@receiver(post_save, sender=Role)
-def create_default_roles(sender, instance, created, **kwargs):
-    if created:
-        default_roles = [
-            {"name": "Admin"},
-            {"name": "Company"},
-            {"name": "Employee"},
-            {"name": "Candidate"},
-            # Thêm các bản ghi khác nếu cần
-        ]
-        for role_data in default_roles:
-            Role.objects.create(**role_data)

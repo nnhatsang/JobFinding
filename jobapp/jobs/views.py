@@ -234,12 +234,22 @@ class UserViewSet(viewsets.ViewSet, generics.RetrieveAPIView, generics.CreateAPI
     def create(self, request, *args, **kwargs):
         role_id = request.data.get('role', None)
 
-        try:
-            role = Role.objects.get(id=role_id)
-            if role.name not in ['Candidate', 'Company']:
-                return Response({'error': 'Invalid role'}, status=status.HTTP_400_BAD_REQUEST)
-        except ObjectDoesNotExist:
-            return Response({'error': 'Role does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+        if role_id is not None:
+            try:
+                role = Role.objects.get(id=role_id)
+                if role.name not in ['Candidate', 'Company']:
+                    return Response({'error': 'Invalid role'}, status=status.HTTP_400_BAD_REQUEST)
+            except ObjectDoesNotExist:
+                return Response({'error': 'Role does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            role_name = request.data.get('role_name', None)  # Lấy tên role từ request
+            if role_name == 'Company':
+                try:
+                    role = Role.objects.get(name=role_name)
+                except ObjectDoesNotExist:
+                    return Response({'error': 'Role does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                role = Role.objects.get(id=4)  # Chọn role mặc định
 
         user_data = request.data.copy()
         user_data['role'] = role.id
@@ -247,8 +257,8 @@ class UserViewSet(viewsets.ViewSet, generics.RetrieveAPIView, generics.CreateAPI
         serializer = self.get_serializer(data=user_data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
 
+        headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     @action(methods=['get'], url_path='current_user', detail=False)
@@ -474,3 +484,74 @@ class ApplicationViewset(viewsets.ViewSet, generics.ListAPIView, generics.Update
         new_application = application_serializer.save()
 
         return Response(ApplicationSerializer(new_application).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def login_view(request):
+    if request.method == 'POST':
+        username = request.POST['username']
+        password = request.POST['password']
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            return Response(data={'message': "Login successfully"}, status=status.HTTP_202_ACCEPTED)
+        else:
+            return Response(data={'error_msg': "Invalid user"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def logout_view(request):
+    logout(request)
+    return Response(status=status.HTTP_200_OK)
+
+
+class AuthInfo(APIView):
+    def get(self, request):
+        return Response(data=settings.OAUTH2_INFO, status=status.HTTP_200_OK)
+
+
+class GoogleSocialAuthView(GenericAPIView):
+    serializer_class = GoogleSocialAuthSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = ((serializer.validated_data)['auth_token'])
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class FacebookSocialAuthView(GenericAPIView):
+    serializer_class = FacebookSocialAuthSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = ((serializer.validated_data)['auth_token'])
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class SendMailAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        email = request.data.get('email')
+        subject = request.data.get('subject')
+        content = request.data.get('content')
+        error_msg = None
+        if email and subject and content:
+            send_email = EmailMessage(subject, content, to=[email])
+            send_email.send()
+        else:
+            error_msg = "Send mail failed !!!"
+        if not error_msg:
+            return Response(data={
+                'status': 'Send mail successfully',
+                'to': email,
+                'subject': subject,
+                'content': content
+            }, status=status.HTTP_200_OK)
+        return Response(data={'error_msg': error_msg},
+                        status=status.HTTP_400_BAD_REQUEST)
