@@ -94,7 +94,7 @@ class CityViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
 
     def filter_queryset(self, queryset):
         # Lọc theo tên thành phố
-        q = self.request.query_params.get("q")
+        q = self.request.query_params.get("search")
         if q:
             queryset = queryset.filter(name__icontains=q)
 
