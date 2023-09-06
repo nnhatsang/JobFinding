@@ -88,6 +88,7 @@ class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
 class CityViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
     queryset = City.objects.filter(active=True).prefetch_related('companies', 'jobs')
     serializer_class = CitySerializer
+    pagination_class = CompanyPaginator
     permission_classes = [permissions.AllowAny]
     filter_backends = [SearchFilter]
     search_fields = ['name']  # Các trường cần tìm kiếm
@@ -126,7 +127,7 @@ class CityViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
 class JobViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
     queryset = Job.objects.filter(Q(is_checked=True) & Q(active=True))
     serializer_class = JobSerializer
-    pagination_class = JobPaginator
+    pagination_class = CompanyPaginator
     permission_classes = [permissions.AllowAny]
     filter_backends = [SearchFilter]
     search_fields = ['name', 'description']  # Các trường cần tìm kiếm
@@ -485,73 +486,111 @@ class ApplicationViewset(viewsets.ViewSet, generics.ListAPIView, generics.Update
 
         return Response(ApplicationSerializer(new_application).data, status=status.HTTP_201_CREATED)
 
-
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def login_view(request):
-    if request.method == 'POST':
-        username = request.POST['username']
-        password = request.POST['password']
-        user = authenticate(request, username=username, password=password)
-        if user is not None:
-            login(request, user)
-            return Response(data={'message': "Login successfully"}, status=status.HTTP_202_ACCEPTED)
-        else:
-            return Response(data={'error_msg': "Invalid user"}, status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def logout_view(request):
-    logout(request)
-    return Response(status=status.HTTP_200_OK)
-
-
-class AuthInfo(APIView):
-    def get(self, request):
-        return Response(data=settings.OAUTH2_INFO, status=status.HTTP_200_OK)
-
-
-class GoogleSocialAuthView(GenericAPIView):
-    serializer_class = GoogleSocialAuthSerializer
+# xử lý blog cho các bài đăng blog
+class BlogViewSet(viewsets.ViewSet,generics.ListAPIView,generics.CreateAPIView):
+    queryset = Blog.objects.filter(active=True)
+    serializer_class = BlogSerializer
     permission_classes = [permissions.AllowAny]
 
-    def post(self, request):
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = ((serializer.validated_data)['auth_token'])
-        return Response(data, status=status.HTTP_200_OK)
+    def get_permissions(self):
+        if self.action in ['create', 'update']:
+            return [UserOwnerPermission()]
+        return [permissions.AllowAny()]
+
+class AdminCompanyViewSet(viewsets.ViewSet,generics.ListAPIView,generics.UpdateAPIView):
+    queryset = Company.objects.all()
+    serializer_class = CompanySerializer
+    pagination_class = CompanyPaginator
+    permission_classes = [AdminPermission]
+    filter_fields = ['is_checked', 'active']  # Cho phép lọc theo các trường is_checked và active
+
+    @action(methods=['put'], detail=True, url_path='approve')
+    def approve_company(self, request, pk):
+        company = self.get_object()
+
+        if company.is_checked:
+            return Response({'detail': 'Company is already approved.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        company.is_checked = True
+        company.save()
+
+        return Response({'detail': 'Company approved successfully.'}, status=status.HTTP_200_OK)
+
+    def perform_destroy(self, instance):
+        instance.active = False
+        instance.save()
 
 
-class FacebookSocialAuthView(GenericAPIView):
-    serializer_class = FacebookSocialAuthSerializer
-
-    def post(self, request):
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = ((serializer.validated_data)['auth_token'])
-        return Response(data, status=status.HTTP_200_OK)
 
 
-class SendMailAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):
-        email = request.data.get('email')
-        subject = request.data.get('subject')
-        content = request.data.get('content')
-        error_msg = None
-        if email and subject and content:
-            send_email = EmailMessage(subject, content, to=[email])
-            send_email.send()
-        else:
-            error_msg = "Send mail failed !!!"
-        if not error_msg:
-            return Response(data={
-                'status': 'Send mail successfully',
-                'to': email,
-                'subject': subject,
-                'content': content
-            }, status=status.HTTP_200_OK)
-        return Response(data={'error_msg': error_msg},
-                        status=status.HTTP_400_BAD_REQUEST)
+#
+#
+# @api_view(['POST'])
+# @permission_classes([AllowAny])
+# def login_view(request):
+#     if request.method == 'POST':
+#         username = request.POST['username']
+#         password = request.POST['password']
+#         user = authenticate(request, username=username, password=password)
+#         if user is not None:
+#             login(request, user)
+#             return Response(data={'message': "Login successfully"}, status=status.HTTP_202_ACCEPTED)
+#         else:
+#             return Response(data={'error_msg': "Invalid user"}, status=status.HTTP_400_BAD_REQUEST)
+#
+#
+# @api_view(['GET'])
+# @permission_classes([AllowAny])
+# def logout_view(request):
+#     logout(request)
+#     return Response(status=status.HTTP_200_OK)
+#
+#
+# class AuthInfo(APIView):
+#     def get(self, request):
+#         return Response(data=settings.OAUTH2_INFO, status=status.HTTP_200_OK)
+#
+#
+# class GoogleSocialAuthView(GenericAPIView):
+#     serializer_class = GoogleSocialAuthSerializer
+#     permission_classes = [permissions.AllowAny]
+#
+#     def post(self, request):
+#         serializer = self.serializer_class(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         data = ((serializer.validated_data)['auth_token'])
+#         return Response(data, status=status.HTTP_200_OK)
+#
+#
+# class FacebookSocialAuthView(GenericAPIView):
+#     serializer_class = FacebookSocialAuthSerializer
+#
+#     def post(self, request):
+#         serializer = self.serializer_class(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         data = ((serializer.validated_data)['auth_token'])
+#         return Response(data, status=status.HTTP_200_OK)
+#
+#
+# class SendMailAPIView(APIView):
+#     permission_classes = [permissions.IsAuthenticated]
+#
+#     def post(self, request):
+#         email = request.data.get('email')
+#         subject = request.data.get('subject')
+#         content = request.data.get('content')
+#         error_msg = None
+#         if email and subject and content:
+#             send_email = EmailMessage(subject, content, to=[email])
+#             send_email.send()
+#         else:
+#             error_msg = "Send mail failed !!!"
+#         if not error_msg:
+#             return Response(data={
+#                 'status': 'Send mail successfully',
+#                 'to': email,
+#                 'subject': subject,
+#                 'content': content
+#             }, status=status.HTTP_200_OK)
+#         return Response(data={'error_msg': error_msg},
+#                         status=status.HTTP_400_BAD_REQUEST)

@@ -3,9 +3,10 @@ import datetime
 from .models import *
 from rest_framework.serializers import ModelSerializer
 from rest_framework import serializers
-from . import cloud_path,google,facebook
+from . import cloud_path, google, facebook
 from rest_framework.exceptions import AuthenticationFailed
 from .register import register_social_user
+from django.conf import settings
 
 
 class AddCommentSerializer(ModelSerializer):
@@ -27,7 +28,6 @@ class UserSerializer(ModelSerializer):
 
     # Thêm trường SerializerMethodField để hiển thị tên công ty
     role_name = serializers.SerializerMethodField()
-
 
     def get_avatar_path(self, obj):
         if obj.avatar:
@@ -51,17 +51,6 @@ class UserSerializer(ModelSerializer):
         }
 
     def create(self, validated_data):
-        # data = validated_data.copy()
-        # role_id = data.pop('role', None)  # Lấy giá trị của trường role
-        # user = User(**data)
-        # user.set_password(user.password)
-        # user.is_active = False
-        # user.save()
-        # if role_id:
-        #     role = Role.objects.get(id=role_id)  # Lấy đối tượng Role dựa trên khóa chính
-        #     user.role = role  # Gán vai trò cho người dùng
-        #     user.save()
-        # return user
         data = validated_data.copy()
         user = User(**data)
         user.set_password(user.password)
@@ -281,46 +270,80 @@ class AddEmployee(ModelSerializer):
         exclude = []
 
 
-class GoogleSocialAuthSerializer(serializers.Serializer):
-    auth_token = serializers.CharField()
-    def validate_auth_token(self, auth_token):
-        user_data = google.Google.validate(auth_token)
-        try:
-            user_data['sub']
-        except:
-            raise serializers.ValidationError(
-                'The token is invalid or expired. Please login again.'
-            )
+class BlogSerializer(ModelSerializer):
+    user = EmployeeSerializer
+    image_path = serializers.SerializerMethodField(source='image')
 
-        if user_data['aud'] != settings.GOOGLE_CLIENT_ID:
-            raise AuthenticationFailed('we cannot authenticate for you!!!')
-        email = user_data['email']
-        name = user_data['email']
-        provider = 'google'
+    def get_image_path(self, obj):
+        if obj.image_blog:
+            path = '{cloud_path}{image_name}'.format(cloud_path=cloud_path, image_name=obj.image_blog)
+            return path
 
-        return register_social_user(
-            provider=provider, email=email, name=name)
+    class Meta:
+        model = Blog
+        exclude = ['image_blog']
 
 
+class CommentBlogSerializer(ModelSerializer):
+    user = UserCvSerializer()
 
-class FacebookSocialAuthSerializer(serializers.Serializer):
-    auth_token = serializers.CharField()
-    def validate_auth_token(self, auth_token):
-        user_data = facebook.Facebook.validate(auth_token)
+    class Meta:
+        model = CommentBlog
+        exclude = ['blog', 'active']
 
-        try:
-        # user_id = user_data['id']
-            email = user_data['email']
-            name = user_data['name']
-            provider = 'facebook'
-            return register_social_user(
-                provider=provider,
-                # user_id=user_id,
-                email=email,
-                name=name
-            )
-        except Exception:
 
-            raise serializers.ValidationError(
-                'The token  is invalid or expired. Please login again.'
-            )
+class AddCommentBlogSerializer(ModelSerializer):
+    class Meta:
+        model = CommentBlog
+        fields = ['id', 'content', 'blog']
+        extra_kwargs = {
+            'user': {
+                'read_only': True
+            }
+        }
+
+#
+# class GoogleSocialAuthSerializer(serializers.Serializer):
+#     auth_token = serializers.CharField()
+#
+#     def validate_auth_token(self, auth_token):
+#         user_data = google.Google.validate(auth_token)
+#         try:
+#             user_data['sub']
+#         except:
+#             raise serializers.ValidationError(
+#                 'The token is invalid or expired. Please login again.'
+#             )
+#
+#         if user_data['aud'] != settings.GOOGLE_CLIENT_ID:
+#             raise AuthenticationFailed('we cannot authenticate for you!!!')
+#         email = user_data['email']
+#         name = user_data['email']
+#         provider = 'google'
+#
+#         return register_social_user(
+#             provider=provider, email=email, name=name)
+#
+#
+# class FacebookSocialAuthSerializer(serializers.Serializer):
+#     auth_token = serializers.CharField()
+#
+#     def validate_auth_token(self, auth_token):
+#         user_data = facebook.Facebook.validate(auth_token)
+#
+#         try:
+#             # user_id = user_data['id']
+#             email = user_data['email']
+#             name = user_data['name']
+#             provider = 'facebook'
+#             return register_social_user(
+#                 provider=provider,
+#                 # user_id=user_id,
+#                 email=email,
+#                 name=name
+#             )
+#         except Exception:
+#
+#             raise serializers.ValidationError(
+#                 'The token  is invalid or expired. Please login again.'
+#             )

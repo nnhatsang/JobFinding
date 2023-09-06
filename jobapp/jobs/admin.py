@@ -29,6 +29,14 @@ class CompanyForm(forms.ModelForm):
         fields = '__all__'
 
 
+class BlogForm(forms.ModelForm):
+    content = forms.CharField(widget=CKEditorUploadingWidget)
+
+    class Meta:
+        model = Blog
+        fields = '__all__'
+
+
 class MyUserAdmin(UserAdmin):
     model = User
     forms = UserForm
@@ -46,6 +54,13 @@ class MyUserAdmin(UserAdmin):
                 "<img src='{cloud_path}{url}' alt='image' width='50' />".format(cloud_path=cloud_path, url=new.avatar)
 
             )
+
+
+class BlogAdmin(admin.ModelAdmin):
+    model = Blog
+    form = BlogForm
+    search_fields = ('title', 'active',)
+    list_display = ('id', 'title', 'user', 'active')
 
 
 class CompanyAdmin(admin.ModelAdmin):
@@ -133,3 +148,6 @@ admin.site.register(Company, CompanyAdmin)
 admin.site.register(ImageCompany)
 admin.site.register(Role, RoleAdmin)
 admin.site.register(City)
+admin.site.register(LikeBlog)
+admin.site.register(Wishlist)
+admin.site.register(Blog,BlogAdmin)

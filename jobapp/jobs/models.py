@@ -24,6 +24,14 @@ AUTH_PROVIDERS = {'facebook': 'facebook',
                   'default': 'default'
                   }
 
+DEGREE_CHOICE = {
+
+}
+TYPE_POST = {'The best company': 'best IT company',
+             'IT career': 'IT career',
+             'Apply & Advance': 'Apply & Advance',
+             'IT Specialization': 'IT Specialization'}
+
 
 class BaseModel(models.Model):
     create_date = models.DateTimeField(auto_now_add=True)
@@ -48,21 +56,22 @@ class User(AbstractUser):
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES, default='Male')
     phone = models.CharField(null=False, max_length=10)
     address = models.CharField(max_length=255)
-    role = models.ForeignKey(Role, on_delete=models.CASCADE, blank=True, null=True, default=4)
-
-    auth_provider = models.CharField(
-        max_length=255, blank=False,
-        null=False, default=AUTH_PROVIDERS.get('default'))
+    role = models.ForeignKey(Role, on_delete=models.CASCADE, blank=True, null=True)
+    degree = models.CharField(max_length=10)
+    #
+    # auth_provider = models.CharField(
+    #     max_length=255, blank=False,
+    #     null=False, default=AUTH_PROVIDERS.get('default'))
 
     def __str__(self):
         return self.username
 
-    def tokens(self):
-        refresh = RefreshToken.for_user(self)
-        return {
-            'refresh': str(refresh),
-            'access': str(refresh.access_token)
-        }
+    # def tokens(self):
+    #     refresh = RefreshToken.for_user(self)
+    #     return {
+    #         'refresh': str(refresh),
+    #         'access': str(refresh.access_token)
+    #     }
 
 
 class City(BaseModel):
@@ -99,6 +108,9 @@ class Employee(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='employees')
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='employees')
     role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='employees')
+
+    class Meta:
+        unique_together = ['user', 'company']  # Đảm bảo mỗi người dùng chỉ có một vai trò trong mỗi công ty
 
     def __str__(self):
         return self.user.username
@@ -167,3 +179,40 @@ class Comment(BaseModel):
     def __str__(self):
         stars = "⭐" * self.rating
         return f"Username: {self.user.username},Role: {self.user.role},Company {self.company.name} : {self.content}: with rating {stars}"
+
+
+class Wishlist(BaseModel):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='wishlist')
+    job = models.ForeignKey(Job, on_delete=models.CASCADE)
+    is_liked = models.BooleanField()
+
+
+class Blog(BaseModel):
+    title = models.CharField(max_length=255, null=False)
+    content = RichTextField()
+    image_blog = CloudinaryField('blog', default='', null=True)
+    count_like_blog = models.IntegerField(default=0)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    type_blog = models.CharField(max_length=50, choices=TYPE_JOB_CHOICES, default='IT career')
+
+    def __str__(self):
+        return self.title
+
+
+class CommentBlog(BaseModel):
+    blog = models.ForeignKey(Blog, on_delete=models.SET_NULL, null=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    content_cmt = RichTextField()
+    status_cmt = models.CharField(max_length=25)
+
+    def __str__(self):
+        return self.content_cmt
+
+
+class LikeBlog(BaseModel):
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    blog = models.ForeignKey(Blog, on_delete=models.SET_NULL, null=True)
+    is_liked = models.BooleanField()
+
+    def __str__(self):
+        return str(self.is_like)

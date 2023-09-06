@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'oauth2_provider',
     'corsheaders',
     'debug_toolbar',
-    # 'rest_framework_simplejwt.token_blacklist',
+    'rest_framework_simplejwt.token_blacklist',
 
 ]
 AUTH_USER_MODEL = 'jobs.User'
@@ -81,7 +81,7 @@ CKEDITOR_CONFIGS = {
     },
 }
 MEDIA_ROOT = '%s/jobs/static/' % BASE_DIR
-OAUTH2_PROVIDER = { 'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore' }
+# OAUTH2_PROVIDER = { 'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore' }
 
 
 TEMPLATES = [
@@ -160,24 +160,24 @@ STATIC_URL = 'static/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
-
-
-
-#send mail config
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_USE_TLS = True
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_HOST_USER = 'travel.agency.ou.management@gmail.com'
-EMAIL_HOST_PASSWORD = 'dvbrqvpkhcooagil'
-EMAIL_PORT = 587
-
-#auth-social config
-GOOGLE_CLIENT_ID = '223587602728-cgo32g1e3tbkabc4hdhllf6oq79l9cn2.apps.googleusercontent.com'
-GOOGLE_CLIENT_SECRET = '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'
-SOCIAL_SECRET = '@gbklknspajdoughwblwdoiushuolnjhsuyu5w#@#%$'
+#
+#
+#
+# #send mail config
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_USE_TLS = True
+# EMAIL_HOST = 'smtp.gmail.com'
+# EMAIL_HOST_USER = 'travel.agency.ou.management@gmail.com'
+# EMAIL_HOST_PASSWORD = 'dvbrqvpkhcooagil'
+# EMAIL_PORT = 587
+#
+# #auth-social config
+# GOOGLE_CLIENT_ID = '223587602728-cgo32g1e3tbkabc4hdhllf6oq79l9cn2.apps.googleusercontent.com'
+# GOOGLE_CLIENT_SECRET = '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'
+# SOCIAL_SECRET = '@gbklknspajdoughwblwdoiushuolnjhsuyu5w#@#%$'
 
 # //
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-client_id = 't4VAi59N3aOa97hUDbFvxc1rK1kl0Rd9ttC6S8Gg'
-client_secret = 'e69l4Ap2UDbfDPs3RQ9ZgwWVGLKJ7zyXvc9DjHmPRvJBKozd5EZhfqfiLtSq1U54mPszthc747ao1tom6IX0TddSAvT5HFplnDDHzc48C5XrXNzms3fJ4QIr68hjdibD'
+client_id = 'mF52gu9Skf7q6DzwbtpgUhs7owCwCF3JVGEBCNZ3'
+client_secret = '9XpvEAyOckjClVgVfKzg8nj4B8MHJtsSo01wOz94ul2ZhWth4yBuLdTwcK7G8b0tcRsbFjTkwvWE5CRe5c0reNNqAwOD25trAh0tdfQ8rPPGMAhbwgfT5BX904cJQKN7'
