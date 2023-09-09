@@ -171,11 +171,11 @@ class CompanySerializer(ModelSerializer):
     def get_company_of(self, obj):
         return obj.user.username
 
-    def get_city(self, obj):
+    def get_city_name(self, obj):
         return obj.city.name
 
     # Thêm trường SerializerMethodField để hiển thị tên công ty
-    city = serializers.SerializerMethodField()
+    city_name = serializers.SerializerMethodField()
     company_of = serializers.SerializerMethodField()
 
     def get_image_path(self, obj):
@@ -185,7 +185,17 @@ class CompanySerializer(ModelSerializer):
 
     class Meta:
         model = Company
-        fields = ['id', 'name', 'email', 'image_path', 'description', 'address', 'city', 'company_of']
+        fields = ['id', 'name', 'email', 'image_path', 'description', 'address', 'city_name', 'company_of', 'user',
+                  'city', 'logo']
+        extra_kwargs = {
+            'city': {
+                'write_only': True
+            }, 'image_path': {
+                'read_only': True
+            }, 'logo': {
+                'write_only': True
+            },
+        }
 
 
 class AddJobSerializer(ModelSerializer):

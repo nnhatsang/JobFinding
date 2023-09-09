@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'debug_toolbar',
     'rest_framework_simplejwt.token_blacklist',
+    # 'rest_framework.authtoken',  # Thêm dòng này
 
 ]
 AUTH_USER_MODEL = 'jobs.User'
@@ -56,6 +57,8 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+
     )
 }
 MIDDLEWARE = [

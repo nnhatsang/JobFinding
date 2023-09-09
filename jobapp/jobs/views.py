@@ -38,6 +38,7 @@ class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
     pagination_class = CompanyPaginator
     permission_classes = [permissions.AllowAny]
     filter_backends = [SearchFilter]
+    parser_classes = [MultiPartParser, ]
     search_fields = ['name', 'city__name']  # Các trường cần tìm kiếm
 
     def filter_queryset(self, queryset):
@@ -83,6 +84,63 @@ class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
 
         serializer = EmployeeSerializer(employees, many=True)
         return Response(serializer.data)
+
+    # @action(methods=['post'], detail=False, url_path='companies', url_name='create_company',
+    #         permission_classes=[permissions.AllowAny])
+    def create(self, request):
+        # Đảm bảo rằng role_name là "Company"
+        role_name = 'Company'
+
+        # Xác định role_id dựa trên role_name
+        try:
+            role = Role.objects.get(name=role_name)
+            role_id = role.id
+        except Role.DoesNotExist:
+            # Nếu role không tồn tại, bạn có thể xử lý theo ý muốn của mình
+            return Response({"error": "Role 'Company' does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+
+        user_data = {
+            'username': request.data.get('username'),
+            'password': request.data.get('password'),
+            'email': request.data.get('email'),
+            'avatar': request.data.get('avatar'),
+            'dob': request.data.get('dob'),
+            'description': request.data.get('description'),
+            'gender': request.data.get('gender'),
+            'phone': request.data.get('phone'),
+            'address': request.data.get('address'),
+            'degree': request.data.get('degree'),
+            'role': role_id  # Thêm role_id vào dữ liệu user
+
+        }
+        # serializer = self.get_serializer(data=user_data)
+        # serializer.is_valid(raise_exception=True)
+        # self.perform_create(serializer)
+
+        user_serializer = UserSerializer(data=user_data)
+        user_serializer.is_valid(raise_exception=True)
+        user = user_serializer.save()
+        # print("usercompanyyy", user.id)
+
+        company_data = {
+            'user': user.id,  # Sử dụng user.id đã được tạo
+            'name': request.data.get('name'),
+            'email': request.data.get('email_company'),
+            'logo': request.data.get('logo'),
+            'address': request.data.get('company_address'),
+            'city': request.data.get('city_company'),
+            'description': request.data.get('company_description'),
+            'is_checked': request.data.get('is_checked'),
+            'logo': request.data.get('logo'),
+
+        }
+        print("datacompany", company_data)
+
+        company_serializer = CompanySerializer(data=company_data)
+        company_serializer.is_valid(raise_exception=True)
+        company = company_serializer.save()
+
+        return Response({"message": "Company created successfully"}, status=status.HTTP_201_CREATED)
 
 
 class CityViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
@@ -233,24 +291,14 @@ class UserViewSet(viewsets.ViewSet, generics.RetrieveAPIView, generics.CreateAPI
         return [permissions.AllowAny()]
 
     def create(self, request, *args, **kwargs):
-        role_id = request.data.get('role', None)
+        role_name = 'Candidate'
 
-        if role_id is not None:
-            try:
-                role = Role.objects.get(id=role_id)
-                if role.name not in ['Candidate', 'Company']:
-                    return Response({'error': 'Invalid role'}, status=status.HTTP_400_BAD_REQUEST)
-            except ObjectDoesNotExist:
-                return Response({'error': 'Role does not exist'}, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            role_name = request.data.get('role_name', None)  # Lấy tên role từ request
-            if role_name == 'Company':
-                try:
-                    role = Role.objects.get(name=role_name)
-                except ObjectDoesNotExist:
-                    return Response({'error': 'Role does not exist'}, status=status.HTTP_400_BAD_REQUEST)
-            else:
-                role = Role.objects.get(id=4)  # Chọn role mặc định
+        # Kiểm tra xem vai trò "Candidate" đã tồn tại trong cơ sở dữ liệu chưa
+        try:
+            role = Role.objects.get(name=role_name)
+        except Role.DoesNotExist:
+            # Nếu không tồn tại, hãy tạo một vai trò mới có rolename là "Candidate"
+            role = Role.objects.create(name=role_name)
 
         user_data = request.data.copy()
         user_data['role'] = role.id
@@ -261,6 +309,36 @@ class UserViewSet(viewsets.ViewSet, generics.RetrieveAPIView, generics.CreateAPI
 
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    # def create(self, request, *args, **kwargs):
+    #     role_id = request.data.get('role', None)
+    #
+    # if role_id is not None:
+    #     try:
+    #         role = Role.objects.get(id=role_id)
+    #         if role.name not in ['Candidate', 'Company']:
+    #             return Response({'error': 'Invalid role'}, status=status.HTTP_400_BAD_REQUEST)
+    #     except ObjectDoesNotExist:
+    #         return Response({'error': 'Role does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+    #     else:
+    #         role_name = request.data.get('role_name', None)  # Lấy tên role từ request
+    #         if role_name == 'Company':
+    #             try:
+    #                 role = Role.objects.get(name=role_name)
+    #             except ObjectDoesNotExist:
+    #                 return Response({'error': 'Role does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+    #         else:
+    #             role = Role.objects.get(id=4)  # Chọn role mặc định
+    #
+    #     user_data = request.data.copy()
+    #     user_data['role'] = role.id
+    #
+    #     serializer = self.get_serializer(data=user_data)
+    #     serializer.is_valid(raise_exception=True)
+    #     self.perform_create(serializer)
+    #
+    #     headers = self.get_success_headers(serializer.data)
+    #     return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     @action(methods=['get'], url_path='current_user', detail=False)
     def current_user(self, request):
@@ -486,8 +564,9 @@ class ApplicationViewset(viewsets.ViewSet, generics.ListAPIView, generics.Update
 
         return Response(ApplicationSerializer(new_application).data, status=status.HTTP_201_CREATED)
 
+
 # xử lý blog cho các bài đăng blog
-class BlogViewSet(viewsets.ViewSet,generics.ListAPIView,generics.CreateAPIView):
+class BlogViewSet(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView):
     queryset = Blog.objects.filter(active=True)
     serializer_class = BlogSerializer
     permission_classes = [permissions.AllowAny]
@@ -497,7 +576,8 @@ class BlogViewSet(viewsets.ViewSet,generics.ListAPIView,generics.CreateAPIView):
             return [UserOwnerPermission()]
         return [permissions.AllowAny()]
 
-class AdminCompanyViewSet(viewsets.ViewSet,generics.ListAPIView,generics.UpdateAPIView):
+
+class AdminCompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.UpdateAPIView):
     queryset = Company.objects.all()
     serializer_class = CompanySerializer
     pagination_class = CompanyPaginator
@@ -519,9 +599,6 @@ class AdminCompanyViewSet(viewsets.ViewSet,generics.ListAPIView,generics.UpdateA
     def perform_destroy(self, instance):
         instance.active = False
         instance.save()
-
-
-
 
 #
 #

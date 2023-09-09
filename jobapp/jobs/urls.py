@@ -16,6 +16,7 @@ r.register('blogs', views.BlogViewSet)
 
 urlpatterns = [
     path('', include(r.urls)),
+
     # path('admin/', admin_site.urls),
 
     # path('send_mail/', views.SendMailAPIView.as_view(), name='send_mail'),

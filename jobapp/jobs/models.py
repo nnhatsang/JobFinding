@@ -85,7 +85,7 @@ class Company(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='companies')
     name = models.CharField(max_length=255)
     email = models.EmailField()
-    logo = CloudinaryField('image', default='', null=True)
+    logo = CloudinaryField('logo', default='', null=True)
     address = models.CharField(max_length=255)
     city = models.ForeignKey(City, on_delete=models.CASCADE, related_name='companies')
     description = RichTextField()
