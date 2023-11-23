@@ -20,8 +20,16 @@ class AddCommentSerializer(ModelSerializer):
         }
 
 
+class RoleSerializer(ModelSerializer):
+    class Meta:
+        model = Role
+        fields = ['id', 'name']
+
+
 class UserSerializer(ModelSerializer):
     avatar_path = serializers.SerializerMethodField(source='avatar')
+
+    # role = RoleSerializer()
 
     def get_role_name(self, obj):
         return obj.role.name
@@ -45,9 +53,10 @@ class UserSerializer(ModelSerializer):
                 'read_only': True
             }, 'avatar': {
                 'write_only': True
-            }, 'role': {
-                'write_only': True
-            }
+            },
+            # 'role': {
+            #     'write_only': True
+            # }
         }
 
     def create(self, validated_data):
@@ -56,13 +65,8 @@ class UserSerializer(ModelSerializer):
         user.set_password(user.password)
         user.is_active = False
         user.save()
+
         return user
-
-
-class RoleSerializer(ModelSerializer):
-    class Meta:
-        model = Role
-        fields = ['name']
 
 
 class UserCompany(ModelSerializer):
@@ -77,12 +81,6 @@ class UserCompany(ModelSerializer):
     class Meta:
         model = User
         fields = ['avatar_path', 'username', 'first_name', 'last_name', 'phone', 'email', 'role']
-
-
-class RoleSerializer(ModelSerializer):
-    class Meta:
-        model = Role
-        fields = ['name']
 
 
 class MajorSerializer(ModelSerializer):
@@ -112,7 +110,7 @@ class ImageCompanySerializer(ModelSerializer):
 class CitySerializer(ModelSerializer):
     class Meta:
         model = City
-        fields = ['name']
+        fields = ['id', 'name']
 
 
 class UserCvSerializer(ModelSerializer):
@@ -126,23 +124,29 @@ class UserCvSerializer(ModelSerializer):
 
 
 class CvSerializer(ModelSerializer):
-    user = UserCvSerializer()
+    user = UserSerializer()
 
     class Meta:
         model = Curriculum_Vitae
-        exclude = ['active', 'is_deleted']
+        exclude = ['active']
 
 
 class AddCvSerializer(ModelSerializer):
     class Meta:
         model = Curriculum_Vitae
         fields = ['id', 'career_goals', 'degree_detail', 'experience_detail', 'skill', 'cv_link', 'foreignLanguage',
-                  'user']
+                  'user',"is_deleted"]
         extra_kwargs = {
             'user': {
                 'read_only': True
             }
         }
+
+
+class AddEmployeeSerializer(ModelSerializer):
+    class Meta:
+        model = Employee
+        exclude = []
 
 
 class EmployeeSerializer(ModelSerializer):
@@ -243,16 +247,20 @@ class AddMajor(ModelSerializer):
 
 
 class ApplicationSerializer(ModelSerializer):
-    # cv = CvSerializer()
+    cv = CvSerializer()
+    user = UserSerializer()
+    job = JobSerializer()
 
-    def get_job_name(self, obj):
-        return obj.job.name
-
-    job_name = serializers.SerializerMethodField()
+    # def get_job_name(self, obj):
+    #     return obj.job.name
+    #
+    # job_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Application
         exclude = ['active']
+
+
 
 
 class AddCompanySerializer(ModelSerializer):
@@ -281,7 +289,7 @@ class AddEmployee(ModelSerializer):
 
 
 class BlogSerializer(ModelSerializer):
-    user = EmployeeSerializer
+    user = UserSerializer()
     image_path = serializers.SerializerMethodField(source='image')
 
     def get_image_path(self, obj):
@@ -310,6 +318,29 @@ class AddCommentBlogSerializer(ModelSerializer):
             'user': {
                 'read_only': True
             }
+        }
+
+
+class AddCVS(ModelSerializer):
+    class Meta:
+        model = Curriculum_Vitae
+        fields = ['id', 'career_goals', 'degree_detail', 'experience_detail', 'skill', 'cv_link', 'foreignLanguage']
+        extra_kwargs = {
+            'user': {
+                'read_only': True
+            }
+        }
+
+class AddApplications(ModelSerializer):
+    class Meta:
+        model = Application
+        exclude = []
+        # fields = ['id', 'cover_letter','cv','job']
+
+        extra_kwargs = {
+            'user': {
+                'read_only': True
+            },
         }
 
 #

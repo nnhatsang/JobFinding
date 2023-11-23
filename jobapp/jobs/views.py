@@ -30,6 +30,15 @@ from django.db.models import F
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.filters import SearchFilter
 from rest_framework.exceptions import PermissionDenied
+from django.db import transaction
+
+from django.views.generic import TemplateView
+from chartjs.views.lines import BaseLineChartView
+from django.shortcuts import render
+from django.db.models.functions import TruncMonth
+from datetime import datetime
+
+current_datetime = datetime.now()
 
 
 class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
@@ -56,6 +65,8 @@ class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
         kw = self.request.query_params.get('kw')
         if kw is not None:
             jobs = jobs.filter(name__icontains=kw)
+
+        jobs = jobs.filter(is_checked=True)
 
         return Response(data=JobSerializer(jobs, many=True).data, status=status.HTTP_200_OK)
 
@@ -85,8 +96,6 @@ class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
         serializer = EmployeeSerializer(employees, many=True)
         return Response(serializer.data)
 
-    # @action(methods=['post'], detail=False, url_path='companies', url_name='create_company',
-    #         permission_classes=[permissions.AllowAny])
     def create(self, request):
         # Đảm bảo rằng role_name là "Company"
         role_name = 'Company'
@@ -111,34 +120,36 @@ class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
             'address': request.data.get('address'),
             'degree': request.data.get('degree'),
             'role': role_id  # Thêm role_id vào dữ liệu user
-
         }
-        # serializer = self.get_serializer(data=user_data)
-        # serializer.is_valid(raise_exception=True)
-        # self.perform_create(serializer)
 
-        user_serializer = UserSerializer(data=user_data)
-        user_serializer.is_valid(raise_exception=True)
-        user = user_serializer.save()
-        # print("usercompanyyy", user.id)
+        with transaction.atomic():  # Mở giao dịch
+            user_serializer = UserSerializer(data=user_data)
+            user_serializer.is_valid(raise_exception=True)
+            user = user_serializer.save()
 
-        company_data = {
-            'user': user.id,  # Sử dụng user.id đã được tạo
-            'name': request.data.get('name'),
-            'email': request.data.get('email_company'),
-            'logo': request.data.get('logo'),
-            'address': request.data.get('company_address'),
-            'city': request.data.get('city_company'),
-            'description': request.data.get('company_description'),
-            'is_checked': request.data.get('is_checked'),
-            'logo': request.data.get('logo'),
+            company_data = {
+                'user': user.id,  # Sử dụng user.id đã được tạo
+                'name': request.data.get('name'),
+                'email': request.data.get('email_company'),
+                'logo': request.data.get('logo'),
+                'address': request.data.get('company_address'),
+                'city': request.data.get('city_company'),
+                'description': request.data.get('company_description'),
+            }
 
-        }
-        print("datacompany", company_data)
+            company_serializer = CompanySerializer(data=company_data)
+            company_serializer.is_valid(raise_exception=True)
+            company = company_serializer.save()
 
-        company_serializer = CompanySerializer(data=company_data)
-        company_serializer.is_valid(raise_exception=True)
-        company = company_serializer.save()
+            employee_data = {
+                'user': user.id,
+                'company': company.id,
+                'role': role_id
+            }
+
+            employee_serializer = AddEmployeeSerializer(data=employee_data)
+            employee_serializer.is_valid(raise_exception=True)
+            employee = employee_serializer.save()
 
         return Response({"message": "Company created successfully"}, status=status.HTTP_201_CREATED)
 
@@ -183,18 +194,19 @@ class CityViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
 
 
 class JobViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
-    queryset = Job.objects.filter(Q(is_checked=True) & Q(active=True))
+    queryset = Job.objects.filter(Q(is_checked=True) & Q(active=True) & Q(end_date__gte=current_datetime))
     serializer_class = JobSerializer
     pagination_class = CompanyPaginator
     permission_classes = [permissions.AllowAny]
     filter_backends = [SearchFilter]
-    search_fields = ['name', 'description']  # Các trường cần tìm kiếm
+    search_fields = ['name', 'description', 'company']  # Các trường cần tìm kiếm
 
     def filter_queryset(self, queryset):
         # Lọc theo tên công việc và mô tả
         q = self.request.query_params.get("q")
         if q:
-            queryset = queryset.filter(name__icontains=q) | queryset.filter(description__icontains=q)
+            queryset = queryset.filter(name__icontains=q) | queryset.filter(description__icontains=q) | queryset.filter(
+                company__name__icontains=q)
 
         # Lọc theo mức lương
         salary_from = self.request.query_params.get('salary_from')
@@ -215,7 +227,7 @@ class JobViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVie
         age_from = self.request.query_params.get('age_from')
         age_to = self.request.query_params.get('age_to')
         if age_from and age_to:
-            queryset = queryset.filter(Q(age_from__lte=age_to) & Q(age_to__gte=age_from))
+            queryset = queryset.filter(Q(age_from__gte=age_to) & Q(age_to__lte=age_from))
         elif age_from:
             queryset = queryset.filter(age_to__gte=age_from)
         elif age_to:
@@ -254,14 +266,15 @@ class JobViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVie
             "salary_to": request.data.get('salary_to'),
             "age_from": request.data.get('age_from'),
             "age_to": request.data.get('age_to'),
-
             "position": request.data.get('position'),
             "degree_required": request.data.get('degree_required'),
             "end_date": request.data.get('end_date'),
             "city": request.data.get('city'),
-            "end_date": request.data.get('end_date'),
             "job_required": request.data.get('job_required'),
             "type_job": request.data.get('type_job'),
+            "quantity": request.data.get('quantity'),
+            "sex_required": request.data.get('sex_required'),
+            "experience_required": request.data.get('experience_required'),
 
             # Các trường thông tin khác của công việc
             "employee": employee.id
@@ -285,8 +298,8 @@ class UserViewSet(viewsets.ViewSet, generics.RetrieveAPIView, generics.CreateAPI
 
     def get_permissions(self):
         if self.action in ['partial_update', 'update', 'retrieve', 'current_user', 'change_password',
-                           'get_list_user_applications',
-                           'get_list_user_cvs']:
+                           'list_applications',
+                           'list_cvs']:
             return [UserOwnerPermission()]
         return [permissions.AllowAny()]
 
@@ -310,39 +323,23 @@ class UserViewSet(viewsets.ViewSet, generics.RetrieveAPIView, generics.CreateAPI
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
-    # def create(self, request, *args, **kwargs):
-    #     role_id = request.data.get('role', None)
-    #
-    # if role_id is not None:
-    #     try:
-    #         role = Role.objects.get(id=role_id)
-    #         if role.name not in ['Candidate', 'Company']:
-    #             return Response({'error': 'Invalid role'}, status=status.HTTP_400_BAD_REQUEST)
-    #     except ObjectDoesNotExist:
-    #         return Response({'error': 'Role does not exist'}, status=status.HTTP_400_BAD_REQUEST)
-    #     else:
-    #         role_name = request.data.get('role_name', None)  # Lấy tên role từ request
-    #         if role_name == 'Company':
-    #             try:
-    #                 role = Role.objects.get(name=role_name)
-    #             except ObjectDoesNotExist:
-    #                 return Response({'error': 'Role does not exist'}, status=status.HTTP_400_BAD_REQUEST)
-    #         else:
-    #             role = Role.objects.get(id=4)  # Chọn role mặc định
-    #
-    #     user_data = request.data.copy()
-    #     user_data['role'] = role.id
-    #
-    #     serializer = self.get_serializer(data=user_data)
-    #     serializer.is_valid(raise_exception=True)
-    #     self.perform_create(serializer)
-    #
-    #     headers = self.get_success_headers(serializer.data)
-    #     return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
     @action(methods=['get'], url_path='current_user', detail=False)
     def current_user(self, request):
         return Response(data=UserSerializer(request.user).data, status=status.HTTP_200_OK)
+
+    @action(methods=['get'], detail=False, url_path='list_cvs')
+    def list_cvs(self, request, pk=None):
+        # user = self.get_object()
+        cvs = Curriculum_Vitae.objects.filter(user=self.request.user, is_deleted=False)
+        serializer = CvSerializer(cvs, many=True)
+        return Response(serializer.data)
+
+    @action(methods=['get'], detail=False, url_path='list_applications')
+    def list_applications(self, request, pk=None):
+        # user = self.get_object()
+        cvs = Application.objects.filter(user=self.request.user)
+        serializer = ApplicationSerializer(cvs, many=True)
+        return Response(serializer.data)
 
     @action(methods=['post'], url_path='change_password', detail=True)
     def change_password(self, request, pk):
@@ -399,6 +396,8 @@ class UserCompanyViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.List
         page = self.paginate_queryset(queryset)  # Phân trang
         serializer = self.get_serializer(page, many=True)
         return self.get_paginated_response(serializer.data)
+
+    #
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -496,9 +495,9 @@ class EmployeeCompanyViewset(viewsets.ViewSet, generics.UpdateAPIView, ):
     permission_classes = [IsAuthenticated, OwnerEmployeePermission | OwnerCompanyPermission]
 
 
-class CvViewSet(viewsets.ViewSet, generics.ListAPIView, generics.UpdateAPIView):
+class CvViewSet(viewsets.ViewSet, generics.ListAPIView, generics.UpdateAPIView, generics.RetrieveAPIView):
     queryset = Curriculum_Vitae.objects.filter(is_deleted=False)
-    serializer_class = CvSerializer
+    serializer_class = AddCvSerializer
 
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
@@ -510,6 +509,13 @@ class CvViewSet(viewsets.ViewSet, generics.ListAPIView, generics.UpdateAPIView):
             return Curriculum_Vitae.objects.filter(user=self.request.user).order_by('-update_date')
         return Curriculum_Vitae.objects.none()
 
+    def get_serializer_class(self):
+        if self.action in ['retrieve', 'partial_update']:
+            return CvSerializer  # Change this to your desired serializer class
+        return AddCvSerializer
+
+
+
     @action(detail=False, methods=['post'])
     def create_cv(self, request):
         serializer = AddCvSerializer(data=request.data)
@@ -518,9 +524,9 @@ class CvViewSet(viewsets.ViewSet, generics.ListAPIView, generics.UpdateAPIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-class ApplicationViewset(viewsets.ViewSet, generics.ListAPIView, generics.UpdateAPIView):
+class ApplicationViewset(viewsets.ViewSet, generics.ListAPIView, generics.UpdateAPIView, generics.RetrieveAPIView):
     queryset = Application.objects.all()
-    serializer_class = ApplicationSerializer
+    serializer_class = AddApplications
 
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
@@ -532,41 +538,51 @@ class ApplicationViewset(viewsets.ViewSet, generics.ListAPIView, generics.Update
             return Application.objects.filter(user=self.request.user).order_by('-update_date')
         return Application.objects.none()
 
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return ApplicationSerializer  # Change this to your desired serializer class
+        return AddApplications
+
     @action(detail=False, methods=['post'])
     def create_application(self, request):
         user = self.request.user
-        job_id = request.data.get('job_id')  # Lấy thông tin job từ request data
-        cv_id = request.data.get('cv_id')  # Lấy thông tin CV từ request data
+        # job_id = request.data.get('job_id')  # Lấy thông tin job từ request data
+        # cv_id = request.data.get('cv_id')  # Lấy thông tin CV từ request data
+        #
+        # try:
+        #     job = Job.objects.get(id=job_id)
+        # except Job.DoesNotExist:
+        #     return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
+        #
+        # cv = None
+        # if cv_id:
+        #     try:
+        #         cv = Curriculum_Vitae.objects.get(id=cv_id)
+        #     except Curriculum_Vitae.DoesNotExist:
+        #         return Response({"error": "CV not found"}, status=status.HTTP_404_NOT_FOUND)
+        #
+        # application_data = {
+        #     "user": user.id,
+        #     "job": job.id,
+        #     "cv": cv.id if cv else None,  # Lưu cv_id nếu có hoặc None nếu không có
+        #     "cover_letter": request.data.get('cover_letter'),
+        #     # Các trường thông tin khác của application
+        # }
 
-        try:
-            job = Job.objects.get(id=job_id)
-        except Job.DoesNotExist:
-            return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
+        # application_serializer = AddApplications(data=application_data)
+        # application_serializer.is_valid(raise_exception=True)
+        # new_application = application_serializer.save()
 
-        cv = None
-        if cv_id:
-            try:
-                cv = Curriculum_Vitae.objects.get(id=cv_id)
-            except Curriculum_Vitae.DoesNotExist:
-                return Response({"error": "CV not found"}, status=status.HTTP_404_NOT_FOUND)
+        serializer = AddApplications(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(user=self.request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        application_data = {
-            "user": user.id,
-            "job": job.id,
-            "cv": cv.id if cv else None,  # Lưu cv_id nếu có hoặc None nếu không có
-            "cover_letter": request.data.get('cover_letter'),
-            # Các trường thông tin khác của application
-        }
-
-        application_serializer = ApplicationSerializer(data=application_data)
-        application_serializer.is_valid(raise_exception=True)
-        new_application = application_serializer.save()
-
-        return Response(ApplicationSerializer(new_application).data, status=status.HTTP_201_CREATED)
+        # return Response(ApplicationSerializer(new_application).data, status=status.HTTP_201_CREATED)
 
 
 # xử lý blog cho các bài đăng blog
-class BlogViewSet(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView):
+class BlogViewSet(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView, generics.RetrieveAPIView):
     queryset = Blog.objects.filter(active=True)
     serializer_class = BlogSerializer
     permission_classes = [permissions.AllowAny]
@@ -599,6 +615,7 @@ class AdminCompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.Updat
     def perform_destroy(self, instance):
         instance.active = False
         instance.save()
+
 
 #
 #
@@ -671,3 +688,57 @@ class AdminCompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.Updat
 #             }, status=status.HTTP_200_OK)
 #         return Response(data={'error_msg': error_msg},
 #                         status=status.HTTP_400_BAD_REQUEST)
+
+
+# stats
+
+class StatsView(TemplateView):
+    template_name = 'stats_template.html'
+
+    def get_context_data(self, **kwargs):
+        # Trích xuất dữ liệu thống kê từ các mô hình (models) và chuẩn bị dữ liệu cho biểu đồ
+        user_count = User.objects.count()
+        job_count = Job.objects.count()
+        cv_count = Curriculum_Vitae.objects.count()
+        application_count = Application.objects.count()
+
+        # Dữ liệu biểu đồ
+        chart_data = {
+            'labels': ['Users', 'Jobs', 'CVs', 'Applications'],
+            'datasets': [{
+                'data': [user_count, job_count, cv_count, application_count],
+                'label': 'Counts',
+                'backgroundColor': ['rgba(255, 99, 132, 0.2)', 'rgba(54, 162, 235, 0.2)', 'rgba(75, 192, 192, 0.2)',
+                                    'rgba(153, 102, 255, 0.2)'],
+                'borderColor': ['rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(75, 192, 192, 1)',
+                                'rgba(153, 102, 255, 1)'],
+                'borderWidth': 1,
+            }]
+        }
+
+        return {
+            'chart_data': chart_data
+        }
+
+
+class StatsChart(BaseLineChartView):
+    model = User  # Điều này có thể thay đổi dựa trên mô hình bạn muốn thống kê
+    date_field = 'created_date'
+    values_field = 'id'
+    title = 'Thống kê người dùng'  # Đổi tên tùy ý
+
+
+def stats(request):
+    # Thống kê số lượng người dùng theo giới tính
+    gender_stats = User.objects.values('gender').annotate(count=Count('id'))
+
+    # Thống kê số lượng người dùng theo vai trò
+    role_stats = User.objects.values('role__name').annotate(count=Count('id'))
+
+    # Dữ liệu để truyền đến template
+    chart_data = {
+        'gender_stats': gender_stats,
+        'role_stats': role_stats,
+    }
+
+    return render(request, 'stats.html', {'chart': chart_data})

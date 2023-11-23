@@ -1,0 +1,53 @@
+<!--&lt;!&ndash; templates/stats.html &ndash;&gt;-->
+<!--<!DOCTYPE html>-->
+<!--<html>-->
+<!--<head>-->
+<!--    <title>Thống kê</title>-->
+<!--    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.6.0/chart.min.js"></script>-->
+<!--</head>-->
+<!--<body>-->
+<!--    <h1>Thống kê người dùng</h1>-->
+
+<!--    <div>-->
+<!--        <h2>Biểu đồ thống kê giới tính</h2>-->
+<!--        <canvas id="genderChart"></canvas>-->
+<!--    </div>-->
+
+<!--    <div>-->
+<!--        <h2>Biểu đồ thống kê vai trò</h2>-->
+<!--        <canvas id="roleChart"></canvas>-->
+<!--    </div>-->
+
+<!--    <script>-->
+<!--        // Biểu đồ thống kê giới tính-->
+<!--        var genderChart = new Chart(document.getElementById('genderChart').getContext('2d'), {-->
+<!--            type: 'bar',-->
+<!--            data: {-->
+<!--                labels: [{% for item in chart.gender_stats %}"{{ item.gender }}",{% endfor %}],-->
+<!--                datasets: [{-->
+<!--                    label: 'Số lượng người dùng',-->
+<!--                    data: [{% for item in chart.gender_stats %}{{ item.count }},{% endfor %}],-->
+<!--                    backgroundColor: 'rgba(75, 192, 192, 0.2)',-->
+<!--                    borderColor: 'rgba(75, 192, 192, 1)',-->
+<!--                    borderWidth: 1-->
+<!--                }]-->
+<!--            }-->
+<!--        });-->
+
+<!--        // Biểu đồ thống kê vai trò-->
+<!--        var roleChart = new Chart(document.getElementById('roleChart').getContext('2d'), {-->
+<!--            type: 'bar',-->
+<!--            data: {-->
+<!--                labels: [{% for item in chart.role_stats %}"{{ item.role__name }}",{% endfor %}],-->
+<!--                datasets: [{-->
+<!--                    label: 'Số lượng người dùng',-->
+<!--                    data: [{% for item in chart.role_stats %}{{ item.count }},{% endfor %}],-->
+<!--                    backgroundColor: 'rgba(75, 192, 192, 0.2)',-->
+<!--                    borderColor: 'rgba(75, 192, 192, 1)',-->
+<!--                    borderWidth: 1-->
+<!--                }]-->
+<!--            }-->
+<!--        });-->
+<!--    </script>-->
+<!--</body>-->
+<!--</html>-->
