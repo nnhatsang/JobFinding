@@ -10,12 +10,17 @@ r.register('users', views.UserViewSet)
 r.register('user_company', views.UserCompanyViewSet, basename='user-company')
 r.register('comments', views.CommentViewSet)
 r.register('cvs', views.CvViewSet)
-r.register('employees', views.EmployeeCompanyViewset, basename='employee')
 r.register('applications', views.ApplicationViewset)
 r.register('blogs', views.BlogViewSet)
 
+r.register('employee_company', views.EmployeeCompanyViewset, basename='employee-company')
+
+
 urlpatterns = [
     path('', include(r.urls)),
+    # path('stats/', views.stats, name='stats'),
+    # path('stats/chart/<str:model>/', views.StatsChart.as_view(), name='stats_chart'),
+    # ...
 
     # path('admin/', admin_site.urls),
 

@@ -46,9 +46,18 @@ INSTALLED_APPS = [
     'corsheaders',
     'debug_toolbar',
     'rest_framework_simplejwt.token_blacklist',
+    # 'chartjs',
+    # 'admincharts',
+
+    # 'jet',
     # 'rest_framework.authtoken',  # Thêm dòng này
 
 ]
+# CHART_CONFIG = {
+#     'use_cache': True,
+#     'cache_timeout': 60 * 15,  # 15 minutes
+# }
+
 AUTH_USER_MODEL = 'jobs.User'
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS':
@@ -179,7 +188,11 @@ STATIC_URL = 'static/'
 # GOOGLE_CLIENT_SECRET = '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'
 # SOCIAL_SECRET = '@gbklknspajdoughwblwdoiushuolnjhsuyu5w#@#%$'
 
-# //
+# # //
+# JET_SIDE_MENU_COMPACT = True  # Hiển thị menu bên gọn gàng hơn
+# JET_CHANGE_LIST_FILTER = True  # Sử dụng bộ lọc tùy chỉnh
+# JET_INDEX_DASHBOARD = 'jobs.dashboard.CustomIndexDashboard'  # Tạo trang dashboard tùy chỉnh
+
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 client_id = 'RGDidoKcPw5FSEfxrXBjvDukRwg525cpmhlxD0N2'
