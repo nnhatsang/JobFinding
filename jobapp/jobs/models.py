@@ -41,6 +41,12 @@ class BaseModel(models.Model):
     class Meta:
         abstract = True
 
+class City(BaseModel):
+    name = models.CharField(max_length=255, unique=True)
+
+    def __str__(self):
+        return self.name
+
 
 class Role(BaseModel):
     name = models.CharField(max_length=50, unique=True)
@@ -58,6 +64,8 @@ class User(AbstractUser):
     address = models.CharField(max_length=255)
     role = models.ForeignKey(Role, on_delete=models.CASCADE, blank=True, null=True)
     degree = models.CharField(max_length=10)
+    # city = models.ForeignKey(City, on_delete=models.CASCADE, related_name='user')
+
     #
     # auth_provider = models.CharField(
     #     max_length=255, blank=False,
@@ -74,11 +82,6 @@ class User(AbstractUser):
     #     }
 
 
-class City(BaseModel):
-    name = models.CharField(max_length=255, unique=True)
-
-    def __str__(self):
-        return self.name
 
 
 class Company(BaseModel):
@@ -215,4 +218,4 @@ class LikeBlog(BaseModel):
     is_liked = models.BooleanField()
 
     def __str__(self):
-        return str(self.is_like)
+        return str(self.is_liked)

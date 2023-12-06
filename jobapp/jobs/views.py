@@ -30,6 +30,9 @@ from django.db.models import F
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.filters import SearchFilter
 from rest_framework.exceptions import PermissionDenied
+from datetime import datetime
+
+current_datetime = datetime.now()
 
 
 class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
@@ -56,6 +59,7 @@ class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
         kw = self.request.query_params.get('kw')
         if kw is not None:
             jobs = jobs.filter(name__icontains=kw)
+        jobs = jobs.filter(is_checked=True)
 
         return Response(data=JobSerializer(jobs, many=True).data, status=status.HTTP_200_OK)
 
@@ -140,6 +144,16 @@ class CompanyViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
         company_serializer.is_valid(raise_exception=True)
         company = company_serializer.save()
 
+        employee_data = {
+            'user': user.id,
+            'company': company.id,
+            'role': role_id
+        }
+
+        employee_serializer = EmployeeSerializer(data=employee_data)
+        employee_serializer.is_valid(raise_exception=True)
+        employee = employee_serializer.save()
+
         return Response({"message": "Company created successfully"}, status=status.HTTP_201_CREATED)
 
 
@@ -153,7 +167,7 @@ class CityViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
 
     def filter_queryset(self, queryset):
         # Lọc theo tên thành phố
-        q = self.request.query_params.get("search")
+        q = self.request.query_params.get("city")
         if q:
             queryset = queryset.filter(name__icontains=q)
 
@@ -183,18 +197,19 @@ class CityViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
 
 
 class JobViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
-    queryset = Job.objects.filter(Q(is_checked=True) & Q(active=True))
+    queryset = Job.objects.filter(Q(is_checked=True) & Q(active=True) & Q(end_date__gte=current_datetime))
     serializer_class = JobSerializer
     pagination_class = CompanyPaginator
     permission_classes = [permissions.AllowAny]
     filter_backends = [SearchFilter]
-    search_fields = ['name', 'description']  # Các trường cần tìm kiếm
+    search_fields = ['name', 'description', 'company']  # Các trường cần tìm kiếm
 
     def filter_queryset(self, queryset):
         # Lọc theo tên công việc và mô tả
         q = self.request.query_params.get("q")
         if q:
-            queryset = queryset.filter(name__icontains=q) | queryset.filter(description__icontains=q)
+            queryset = queryset.filter(name__icontains=q) | queryset.filter(description__icontains=q) | queryset.filter(
+                company__name__icontains=q)
 
         # Lọc theo mức lương
         salary_from = self.request.query_params.get('salary_from')
@@ -226,7 +241,21 @@ class JobViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVie
         if city_name:
             queryset = queryset.filter(city__name__icontains=city_name)
 
+        company_name = self.request.query_params.get('company_name')
+        if company_name:
+            queryset = queryset.filter(company__name__icontains=company_name)
         return queryset
+
+    @action(detail=True, methods=['get'], permission_classes=[OwnerEmployeePermission, OwnerCompanyPermission])
+    def applications(self, request, pk=None):
+        try:
+            job = Job.objects.get(pk=pk)
+        except Job.DoesNotExist:
+            return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        applications = Application.objects.filter(job=job)
+        serializer = ApplicationSerializer(applications, many=True)
+        return Response(serializer.data)
 
     @action(detail=False, methods=['post'],
             permission_classes=[IsAuthenticated, OwnerEmployeePermission, OwnerCompanyPermission])
@@ -285,8 +314,8 @@ class UserViewSet(viewsets.ViewSet, generics.RetrieveAPIView, generics.CreateAPI
 
     def get_permissions(self):
         if self.action in ['partial_update', 'update', 'retrieve', 'current_user', 'change_password',
-                           'get_list_user_applications',
-                           'get_list_user_cvs']:
+                           'list_applications',
+                           'list_cvs']:
             return [UserOwnerPermission()]
         return [permissions.AllowAny()]
 
@@ -310,39 +339,23 @@ class UserViewSet(viewsets.ViewSet, generics.RetrieveAPIView, generics.CreateAPI
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
-    # def create(self, request, *args, **kwargs):
-    #     role_id = request.data.get('role', None)
-    #
-    # if role_id is not None:
-    #     try:
-    #         role = Role.objects.get(id=role_id)
-    #         if role.name not in ['Candidate', 'Company']:
-    #             return Response({'error': 'Invalid role'}, status=status.HTTP_400_BAD_REQUEST)
-    #     except ObjectDoesNotExist:
-    #         return Response({'error': 'Role does not exist'}, status=status.HTTP_400_BAD_REQUEST)
-    #     else:
-    #         role_name = request.data.get('role_name', None)  # Lấy tên role từ request
-    #         if role_name == 'Company':
-    #             try:
-    #                 role = Role.objects.get(name=role_name)
-    #             except ObjectDoesNotExist:
-    #                 return Response({'error': 'Role does not exist'}, status=status.HTTP_400_BAD_REQUEST)
-    #         else:
-    #             role = Role.objects.get(id=4)  # Chọn role mặc định
-    #
-    #     user_data = request.data.copy()
-    #     user_data['role'] = role.id
-    #
-    #     serializer = self.get_serializer(data=user_data)
-    #     serializer.is_valid(raise_exception=True)
-    #     self.perform_create(serializer)
-    #
-    #     headers = self.get_success_headers(serializer.data)
-    #     return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
     @action(methods=['get'], url_path='current_user', detail=False)
     def current_user(self, request):
         return Response(data=UserSerializer(request.user).data, status=status.HTTP_200_OK)
+
+    @action(methods=['get'], detail=False, url_path='list_cvs')
+    def list_cvs(self, request, pk=None):
+        # user = self.get_object()
+        cvs = Curriculum_Vitae.objects.filter(user=self.request.user)
+        serializer = CvSerializer(cvs, many=True)
+        return Response(serializer.data)
+
+    @action(methods=['get'], detail=False, url_path='list_applications')
+    def list_applications(self, request, pk=None):
+        # user = self.get_object()
+        cvs = Application.objects.filter(user=self.request.user)
+        serializer = ApplicationSerializer(cvs, many=True)
+        return Response(serializer.data)
 
     @action(methods=['post'], url_path='change_password', detail=True)
     def change_password(self, request, pk):
@@ -462,6 +475,21 @@ class UserCompanyViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.List
 
         return Response({"message": "Employee created successfully"}, status=status.HTTP_201_CREATED)
 
+    @action(detail=True, methods=['get'])
+    def list_jobs(self, request, pk=None):
+        company = self.get_object()
+        jobs = Job.objects.filter(company=company)
+        serializer = JobSerializer(jobs, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def list_jobs_by_application(self, request, pk=None):
+        company = self.get_object()
+        applications = Application.objects.filter(job__company=company)
+        jobs = [application.job for application in applications]
+        serializer = JobSerializer(jobs, many=True)
+        return Response(serializer.data)
+
 
 class CommentViewSet(viewsets.ViewSet, generics.UpdateAPIView, generics.DestroyAPIView):
     queryset = Comment.objects.all()
@@ -496,9 +524,9 @@ class EmployeeCompanyViewset(viewsets.ViewSet, generics.UpdateAPIView, ):
     permission_classes = [IsAuthenticated, OwnerEmployeePermission | OwnerCompanyPermission]
 
 
-class CvViewSet(viewsets.ViewSet, generics.ListAPIView, generics.UpdateAPIView):
+class CvViewSet(viewsets.ViewSet, generics.ListAPIView, generics.UpdateAPIView, generics.RetrieveAPIView):
     queryset = Curriculum_Vitae.objects.filter(is_deleted=False)
-    serializer_class = CvSerializer
+    serializer_class = AddCvSerializer
 
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
@@ -510,6 +538,11 @@ class CvViewSet(viewsets.ViewSet, generics.ListAPIView, generics.UpdateAPIView):
             return Curriculum_Vitae.objects.filter(user=self.request.user).order_by('-update_date')
         return Curriculum_Vitae.objects.none()
 
+    def get_serializer_class(self):
+        if self.action in ['retrieve', 'partial_update']:
+            return CvSerializer  # Change this to your desired serializer class
+        return AddCvSerializer
+
     @action(detail=False, methods=['post'])
     def create_cv(self, request):
         serializer = AddCvSerializer(data=request.data)
@@ -518,9 +551,9 @@ class CvViewSet(viewsets.ViewSet, generics.ListAPIView, generics.UpdateAPIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-class ApplicationViewset(viewsets.ViewSet, generics.ListAPIView, generics.UpdateAPIView):
+class ApplicationViewset(viewsets.ViewSet, generics.ListAPIView, generics.UpdateAPIView, generics.RetrieveAPIView):
     queryset = Application.objects.all()
-    serializer_class = ApplicationSerializer
+    serializer_class = AddApplications
 
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
@@ -532,41 +565,25 @@ class ApplicationViewset(viewsets.ViewSet, generics.ListAPIView, generics.Update
             return Application.objects.filter(user=self.request.user).order_by('-update_date')
         return Application.objects.none()
 
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return ApplicationSerializer  # Change this to your desired serializer class
+        return AddApplications
+
     @action(detail=False, methods=['post'])
     def create_application(self, request):
-        user = self.request.user
-        job_id = request.data.get('job_id')  # Lấy thông tin job từ request data
-        cv_id = request.data.get('cv_id')  # Lấy thông tin CV từ request data
 
-        try:
-            job = Job.objects.get(id=job_id)
-        except Job.DoesNotExist:
-            return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        cv = None
-        if cv_id:
-            try:
-                cv = Curriculum_Vitae.objects.get(id=cv_id)
-            except Curriculum_Vitae.DoesNotExist:
-                return Response({"error": "CV not found"}, status=status.HTTP_404_NOT_FOUND)
+        serializer = AddApplications(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(user=self.request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        application_data = {
-            "user": user.id,
-            "job": job.id,
-            "cv": cv.id if cv else None,  # Lưu cv_id nếu có hoặc None nếu không có
-            "cover_letter": request.data.get('cover_letter'),
-            # Các trường thông tin khác của application
-        }
-
-        application_serializer = ApplicationSerializer(data=application_data)
-        application_serializer.is_valid(raise_exception=True)
-        new_application = application_serializer.save()
-
-        return Response(ApplicationSerializer(new_application).data, status=status.HTTP_201_CREATED)
+        # return Response(ApplicationSerializer(new_application).data, status=status.HTTP_201_CREATED)
 
 
 # xử lý blog cho các bài đăng blog
-class BlogViewSet(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView):
+class BlogViewSet(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView, generics.RetrieveAPIView):
     queryset = Blog.objects.filter(active=True)
     serializer_class = BlogSerializer
     permission_classes = [permissions.AllowAny]
