@@ -58,6 +58,24 @@ class MyUserAdmin(UserAdmin):
     list_filter = ('role', 'is_active')
     readonly_fields = ('last_login', 'date_joined', 'avatar')
 
+    actions = ['activate_selected_users']
+
+    def activate_selected_users(self, request, queryset):
+        # queryset contains the selected users
+        for user in queryset:
+            user.is_active = True
+            user.save()
+
+        self.message_user(request, f'Successfully activated {queryset.count()} users.')
+
+    activate_selected_users.short_description = 'Activate selected users'
+
+    # def change_view(self, request, object_id, form_url='', extra_context=None):
+    #     extra_context = extra_context or {}
+    #     chart_url = reverse('admincharts_piechart', args=['Thống kê người dùng', 'User', object_id, 'my_pie_chart'])
+    #     extra_context['chart_url'] = chart_url
+    #     return super().change_view(request, object_id, form_url, extra_context=extra_context)
+
     # def change_view(self, request, object_id, form_url='', extra_context=None):
     #     extra_context = extra_context or {}
     #     chart_url = reverse('admin:admincharts_piechart', args=['Thống kê người dùng', 'User', object_id, 'my_pie_chart'])
@@ -78,6 +96,8 @@ class BlogAdmin(admin.ModelAdmin):
     form = BlogForm
     search_fields = ('title', 'active',)
     list_display = ('id', 'title', 'user', 'active')
+    list_display_links = ('title',)
+
 
 
 class CompanyAdmin(admin.ModelAdmin):
@@ -222,4 +242,3 @@ admin.site.register(City)
 admin.site.register(LikeBlog)
 admin.site.register(Wishlist)
 admin.site.register(Blog,BlogAdmin)
-

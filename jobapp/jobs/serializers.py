@@ -135,7 +135,7 @@ class AddCvSerializer(ModelSerializer):
     class Meta:
         model = Curriculum_Vitae
         fields = ['id', 'career_goals', 'degree_detail', 'experience_detail', 'skill', 'cv_link', 'foreignLanguage',
-                  'user',"is_deleted"]
+                  'user']
         extra_kwargs = {
             'user': {
                 'read_only': True
@@ -150,19 +150,19 @@ class AddEmployeeSerializer(ModelSerializer):
 
 
 class EmployeeSerializer(ModelSerializer):
-    user = UserCompany()
-
-    def get_company_name(self, obj):
-        return obj.company.name
-
-    def get_role_name(self, obj):
-        return obj.role.name
-
-    # Thêm trường SerializerMethodField để hiển thị tên công ty
-    company_name = serializers.SerializerMethodField()
-
-    # Thêm trường SerializerMethodField để hiển thị tên vai trò
-    role_name = serializers.SerializerMethodField()
+    # user = UserCompany()
+    #
+    # def get_company_name(self, obj):
+    #     return obj.company.name
+    #
+    # def get_role_name(self, obj):
+    #     return obj.role.name
+    #
+    # # Thêm trường SerializerMethodField để hiển thị tên công ty
+    # company_name = serializers.SerializerMethodField()
+    #
+    # # Thêm trường SerializerMethodField để hiển thị tên vai trò
+    # role_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Employee
@@ -217,7 +217,7 @@ class CommentSerializer(ModelSerializer):
 
 
 class JobSerializer(ModelSerializer):
-    # company = CompanySerializer()
+    company = CompanySerializer()
 
     def get_city(self, obj):
         return obj.city.name
@@ -227,7 +227,7 @@ class JobSerializer(ModelSerializer):
 
     # Thêm trường SerializerMethodField để hiển thị tên công ty
     city = serializers.SerializerMethodField()
-    company = serializers.SerializerMethodField()
+    # company = serializers.SerializerMethodField()
 
     def get_majors(self, obj):
         return obj.majors.all().values_list('name', flat=True)
@@ -289,7 +289,7 @@ class AddEmployee(ModelSerializer):
 
 
 class BlogSerializer(ModelSerializer):
-    user = UserSerializer()
+    # user = UserSerializer()
     image_path = serializers.SerializerMethodField(source='image')
 
     def get_image_path(self, obj):
