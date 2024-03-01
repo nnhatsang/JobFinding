@@ -240,6 +240,23 @@ class JobViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVie
 
         return queryset
 
+    @action(detail=True, methods=['get'],
+            permission_classes=[IsAuthenticated, OwnerEmployeePermission, OwnerCompanyPermission])
+    def company_applications(self, request, pk=None):
+        try:
+            job = Job.objects.get(pk=pk)
+        except Job.DoesNotExist:
+            return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check if the current user belongs to the same company as the job
+        user = self.request.user
+        if user.role.name != "Company" or user.company.id != job.company.id:
+            raise PermissionDenied("You don't have permission to view applications for this job.")
+
+        applications = Application.objects.filter(job=job)
+        serializer = ApplicationSerializer(applications, many=True)
+        return Response(serializer.data)
+
     @action(detail=False, methods=['post'],
             permission_classes=[IsAuthenticated, OwnerEmployeePermission, OwnerCompanyPermission])
     def create_job(self, request):
@@ -402,6 +419,17 @@ class UserCompanyViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.List
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
+    @action(detail=True, methods=['get'], permission_classes=[OwnerEmployeePermission, OwnerCompanyPermission])
+    def applications(self, request, pk=None):
+        try:
+            job = Job.objects.get(pk=pk)
+        except Job.DoesNotExist:
+            return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        applications = Application.objects.filter(job=job)
+        serializer = ApplicationSerializer(applications, many=True)
+        return Response(serializer.data)
+
     @action(detail=True, methods=['get'])
     def list_employee_in_company(self, request, pk=None):
         company = self.get_object()
@@ -436,10 +464,10 @@ class UserCompanyViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.List
             company_data = {
                 'user': user.id,
                 'name': request.data.get('name'),
-                'email': request.data.get('email'),
+                'email': request.data.get('email_company'),
                 'logo': request.data.get('logo'),
                 'address': request.data.get('company_address'),
-                'city': request.data.get('city_id'),
+                'city': request.data.get('city_company'),
                 'description': request.data.get('company_description'),
                 'is_checked': request.data.get('is_checked')
             }
@@ -513,8 +541,6 @@ class CvViewSet(viewsets.ViewSet, generics.ListAPIView, generics.UpdateAPIView, 
         if self.action in ['retrieve', 'partial_update']:
             return CvSerializer  # Change this to your desired serializer class
         return AddCvSerializer
-
-
 
     @action(detail=False, methods=['post'])
     def create_cv(self, request):
