@@ -4,18 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="3f7a3a78-6f81-47f9-9327-f3f1de7d98d6" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/JobFinding.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/JobFinding.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/jobapp/jobapp/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/jobapp/jobapp/settings.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/jobapp/jobs/admin.py" beforeDir="false" afterPath="$PROJECT_DIR$/jobapp/jobs/admin.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/jobapp/jobs/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/jobapp/jobs/models.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/jobapp/jobs/serializers.py" beforeDir="false" afterPath="$PROJECT_DIR$/jobapp/jobs/serializers.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/jobapp/jobs/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/jobapp/jobs/views.py" afterDir="false" />
+    <list default="true" id="3f7a3a78-6f81-47f9-9327-f3f1de7d98d6" name="Changes" comment="fix view and serializers">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -25,11 +15,15 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;customColor&quot;: &quot;&quot;,
   &quot;associatedIndex&quot;: -1
 }</component>
   <component name="ProjectId" id="2YbPpc1UIuJgWqBUsLRRsft0lOw" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
@@ -63,5 +57,23 @@
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="fix view and serializers" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix view and serializers" />
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/JobFinding$manage.coverage" NAME="manage Coverage Results" MODIFIED="1690179419391" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/jobapp" />
   </component>
 </project>
